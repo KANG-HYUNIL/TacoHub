@@ -1,5 +1,83 @@
 # TacoHub 개발 히스토리
 
+## 2025-06-30: Notion Copy 기능 기반 구조 구현
+
+### 구현 기능 요약
+- Notion과 유사한 협업 문서 관리 시스템의 기반 구조 구현
+- 워크스페이스(Workspace), 페이지(Page), 워크스페이스 사용자(WorkspaceUser) 개념 도입
+- 계층적 페이지 구조 및 사용자 권한 관리 시스템 설계
+- 공통 날짜 관리를 위한 Base 클래스 구현
+
+### 새로 작성된 클래스
+
+#### 기반 클래스
+- `BaseDateEntity`: 모든 엔티티의 공통 부모 클래스, JPA Auditing을 통한 생성일/수정일 자동 관리
+- `BaseDateDTO`: 모든 DTO의 공통 부모 클래스, 생성일/수정일 정보 포함
+
+#### 엔티티 (Entity)
+- `PageEntity`: 페이지 정보 저장, 계층 구조 지원 (부모-자식 관계)
+- `WorkSpaceEntity`: 워크스페이스 정보 저장
+- `WorkSpaceUserEntity`: 워크스페이스와 사용자 간의 관계 및 권한 정보 저장
+
+#### DTO (Data Transfer Object)
+- `PageDTO`: 페이지 정보 전송용 객체, 계층 구조 및 워크스페이스 정보 포함
+- `WorkSpaceDTO`: 워크스페이스 정보 전송용 객체, 관련 페이지 및 사용자 정보 포함
+- `WorkSpaceUserDTO`: 워크스페이스 사용자 관계 정보 전송용 객체
+
+#### 레포지토리 (Repository)
+- `PageRepository`: 페이지 데이터 액세스 인터페이스
+- `WorkSpaceRepository`: 워크스페이스 데이터 액세스 인터페이스
+- `WorkSpaceUserRepository`: 워크스페이스 사용자 관계 데이터 액세스 인터페이스
+- `BlockDocumentRepository`: 블록 도큐먼트 데이터 액세스 인터페이스
+
+#### 컨버터 (Converter)
+- `PageConverter`: PageEntity와 PageDTO 간 변환, 계층 구조 처리
+- `WorkSpaceConverter`: WorkSpaceEntity와 WorkSpaceDTO 간 변환
+- `WorkSpaceUserConverter`: WorkSpaceUserEntity와 WorkSpaceUserDTO 간 변환
+
+#### 서비스 (Service)
+- `PageService`: 페이지 관련 비즈니스 로직 처리 (뼈대만 구성)
+- `WorkSpaceService`: 워크스페이스 관련 비즈니스 로직 처리 (뼈대만 구성)
+- `WorkSpaceUserService`: 워크스페이스 사용자 관리 비즈니스 로직 처리 (뼈대만 구성)
+- `BlockService`: 블록 관련 비즈니스 로직 처리 (뼈대만 구성)
+
+#### 열거형 (Enum)
+- `WorkSpaceRole`: 워크스페이스 내 사용자 역할 정의 (OWNER, ADMIN, MEMBER, GUEST)
+- `MembershipStatus`: 워크스페이스 멤버십 상태 정의 (ACTIVE, INVITED, SUSPENDED)
+
+### 주요 설계 특징
+
+#### 1. 계층적 페이지 구조
+- 페이지 간 부모-자식 관계 지원
+- `isRoot` 플래그를 통한 루트 페이지 식별
+- `orderIndex`를 통한 페이지 정렬 순서 관리
+
+#### 2. 워크스페이스 기반 협업
+- 다중 사용자가 공유하는 워크스페이스 개념
+- 워크스페이스별 사용자 권한 관리 (OWNER, ADMIN, MEMBER, GUEST)
+- 멤버십 상태 관리 (ACTIVE, INVITED, SUSPENDED)
+
+#### 3. UUID 기반 식별자
+- 모든 주요 엔티티에서 UUID 사용으로 확장성 확보
+- 분산 환경에서의 고유성 보장
+
+#### 4. JPA Auditing 활용
+- `BaseDateEntity`를 통한 생성일/수정일 자동 관리
+- `@CreatedDate`, `@LastModifiedDate` 어노테이션 활용
+
+### 데이터베이스 구조
+- **workspace**: 워크스페이스 기본 정보
+- **page**: 페이지 정보 및 계층 구조
+- **workspace_user**: 워크스페이스와 사용자 간의 관계 테이블
+
+### 앞으로 추가될 내용
+- Service 및 Repository 클래스의 비즈니스 로직 기능 구현
+- Controller와 Service 연결 및 REST API 구현
+- 생성한 Entity, Service, Repository, Controller 등에 대한 Test Code 작성
+- 페이지 블록 시스템 구현 (텍스트, 이미지, 테이블 등)
+- 실시간 협업 기능 (WebSocket 활용)
+- 권한 기반 접근 제어 상세 구현
+
 ## 2025-05-03 (2): JWT 기반 로그인 기능 구현
 
 ### 구현 기능 요약

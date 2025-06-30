@@ -9,8 +9,9 @@
 5. [레포지토리(Repository)](#레포지토리)
 6. [컨버터(Converter)](#컨버터)
 7. [예외(Exception)](#예외)
-8. [설정(Config)](#설정)
-9. [JWT 및 인증(Authentication)](#jwt-및-인증)
+8. [열거형(Enum)](#열거형)
+9. [설정(Config)](#설정)
+10. [JWT 및 인증(Authentication)](#jwt-및-인증)
 
 ---
 
@@ -30,6 +31,57 @@
 - `name`: 사용자 이름
 - `role`: 권한 (ROLE_USER, ROLE_LEADER)
 
+### BaseDateEntity
+
+**경로:** `com.example.TacoHub.Entity.BaseDateEntity`
+
+**설명:** 모든 엔티티가 상속받는 추상 클래스로, 생성일시와 수정일시를 자동으로 관리합니다. JPA Auditing 기능을 활용합니다.
+
+**주요 속성:**
+- `createdAt`: 생성 일시 (자동 설정)
+- `updatedAt`: 수정 일시 (자동 업데이트)
+
+### PageEntity
+
+**경로:** `com.example.TacoHub.Entity.NotionCopyEntity.PageEntity`
+
+**설명:** Notion과 유사한 페이지 정보를 저장하는 엔티티입니다. 계층 구조를 지원하여 부모-자식 페이지 관계를 관리합니다.
+
+**주요 속성:**
+- `id`: 페이지 ID (UUID, 기본 키)
+- `title`: 페이지 제목
+- `path`: 페이지 경로
+- `blockId`: 페이지에 연결된 블록 ID
+- `workspace`: 페이지가 속한 워크스페이스 (외래 키)
+- `parentPage`: 부모 페이지 (자기 참조)
+- `childPages`: 자식 페이지 목록
+- `orderIndex`: 정렬 순서
+- `isRoot`: 루트 페이지 여부
+
+### WorkSpaceEntity
+
+**경로:** `com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity`
+
+**설명:** 워크스페이스 정보를 저장하는 엔티티입니다. 여러 사용자가 공유하는 작업 공간을 나타냅니다.
+
+**주요 속성:**
+- `id`: 워크스페이스 ID (UUID, 기본 키)
+- `name`: 워크스페이스 이름
+- `rootPages`: 워크스페이스의 루트 페이지 목록
+
+### WorkSpaceUserEntity
+
+**경로:** `com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceUserEntity`
+
+**설명:** 워크스페이스와 사용자 간의 관계를 나타내는 엔티티입니다. 사용자의 워크스페이스 내 권한과 상태를 관리합니다.
+
+**주요 속성:**
+- `id`: 워크스페이스 사용자 ID (UUID, 기본 키)
+- `workspace`: 워크스페이스 (외래 키)
+- `user`: 사용자 계정 (외래 키)
+- `workspaceRole`: 워크스페이스 내 역할 (OWNER, ADMIN, MEMBER, GUEST)
+- `membershipStatus`: 멤버십 상태 (ACTIVE, INVITED, SUSPENDED)
+
 ---
 
 ## DTO
@@ -47,6 +99,16 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 - `password`: 비밀번호
 - `name`: 사용자 이름
 - `role`: 권한
+
+### BaseDateDTO
+
+**경로:** `com.example.TacoHub.Dto.BaseDateDTO`
+
+**설명:** 모든 DTO가 상속받는 추상 클래스로, 생성일시와 수정일시 정보를 포함합니다.
+
+**주요 속성:**
+- `createdAt`: 생성 일시
+- `updatedAt`: 수정 일시
 
 ### EmailVerificationDto
 
@@ -68,6 +130,48 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 **주요 속성:**
 - `emailId`: 이메일 ID
 - `password`: 비밀번호
+
+### PageDTO
+
+**경로:** `com.example.TacoHub.Dto.NotionCopyDTO.PageDTO`
+
+**설명:** 페이지 정보를 전달하는 DTO입니다. 페이지의 기본 정보와 계층 구조 정보를 포함합니다.
+
+**주요 속성:**
+- `id`: 페이지 ID
+- `title`: 페이지 제목
+- `path`: 페이지 경로
+- `blockId`: 연결된 블록 ID
+- `orderIndex`: 정렬 순서
+- `isRoot`: 루트 페이지 여부
+- `workspaceId`: 속한 워크스페이스 ID
+- `workspaceName`: 속한 워크스페이스 이름
+- `parentPageId`: 부모 페이지 ID
+- `childPages`: 자식 페이지 목록
+
+### WorkSpaceDTO
+
+**경로:** `com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO`
+
+**설명:** 워크스페이스 정보를 전달하는 DTO입니다. 워크스페이스의 기본 정보와 관련된 페이지, 사용자 정보를 포함합니다.
+
+**주요 속성:**
+- `id`: 워크스페이스 ID
+- `name`: 워크스페이스 이름
+- `rootPageDTOS`: 루트 페이지 목록
+- `workSpaceUserDTOS`: 워크스페이스 사용자 목록
+
+### WorkSpaceUserDTO
+
+**경로:** `com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO`
+
+**설명:** 워크스페이스 사용자 관계 정보를 전달하는 DTO입니다. 사용자의 워크스페이스 내 권한과 상태 정보를 포함합니다.
+
+**주요 속성:**
+- `workspaceId`: 워크스페이스 ID
+- `userEmailId`: 사용자 이메일 ID
+- `workspaceRole`: 워크스페이스 내 역할
+- `membershipStatus`: 멤버십 상태
 
 ---
 
@@ -150,6 +254,42 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 - `checkExistsValue(String)`: 키 존재 여부 확인
 - `deleteValues(String)`: 키-값 쌍 삭제
 
+### PageService
+
+**경로:** `com.example.TacoHub.Service.NotionCopyService.PageService`
+
+**설명:** 페이지 관련 비즈니스 로직을 처리하는 서비스 클래스입니다. 페이지 생성, 조회, 수정, 삭제 등의 기능을 제공합니다.
+
+**주요 메서드:**
+- 향후 구현 예정 (페이지 CRUD 작업)
+
+### WorkSpaceService
+
+**경로:** `com.example.TacoHub.Service.NotionCopyService.WorkSpaceService`
+
+**설명:** 워크스페이스 관련 비즈니스 로직을 처리하는 서비스 클래스입니다. 워크스페이스 생성, 조회, 수정, 삭제 등의 기능을 제공합니다.
+
+**주요 메서드:**
+- 향후 구현 예정 (워크스페이스 CRUD 작업)
+
+### WorkSpaceUserService
+
+**경로:** `com.example.TacoHub.Service.NotionCopyService.WorkSpaceUserService`
+
+**설명:** 워크스페이스 사용자 관계 관리 비즈니스 로직을 처리하는 서비스 클래스입니다. 사용자 초대, 권한 변경, 멤버십 관리 등의 기능을 제공합니다.
+
+**주요 메서드:**
+- 향후 구현 예정 (워크스페이스 사용자 관리 작업)
+
+### BlockService
+
+**경로:** `com.example.TacoHub.Service.NotionCopyService.BlockService`
+
+**설명:** 블록 관련 비즈니스 로직을 처리하는 서비스 클래스입니다. 블록 생성, 조회, 수정, 삭제 등의 기능을 제공합니다.
+
+**주요 메서드:**
+- 향후 구현 예정 (블록 CRUD 작업)
+
 ---
 
 ## 레포지토리
@@ -168,6 +308,42 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 - `findByNameContaining(String)`: 이름 포함 검색
 - `findByEmailId(String)`: 이메일 ID 정확히 일치하는 계정 조회
 
+### PageRepository
+
+**경로:** `com.example.TacoHub.Repository.NotionCopyRepository.PageRepository`
+
+**설명:** 페이지 정보에 대한 데이터 액세스를 제공합니다. JpaRepository를 상속받아 기본 CRUD 기능을 제공합니다.
+
+**주요 메서드:**
+- 기본 JpaRepository 메서드들 (save, findById, findAll, delete 등)
+
+### WorkSpaceRepository
+
+**경로:** `com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository`
+
+**설명:** 워크스페이스 정보에 대한 데이터 액세스를 제공합니다. JpaRepository를 상속받아 기본 CRUD 기능을 제공합니다.
+
+**주요 메서드:**
+- 기본 JpaRepository 메서드들 (save, findById, findAll, delete 등)
+
+### WorkSpaceUserRepository
+
+**경로:** `com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceUserRepository`
+
+**설명:** 워크스페이스 사용자 관계 정보에 대한 데이터 액세스를 제공합니다. JpaRepository를 상속받아 기본 CRUD 기능을 제공합니다.
+
+**주요 메서드:**
+- 기본 JpaRepository 메서드들 (save, findById, findAll, delete 등)
+
+### BlockDocumentRepository
+
+**경로:** `com.example.TacoHub.Repository.NotionCopyRepository.BlockDocumentRepository`
+
+**설명:** 블록 도큐먼트 정보에 대한 데이터 액세스를 제공합니다. JpaRepository를 상속받아 기본 CRUD 기능을 제공합니다.
+
+**주요 메서드:**
+- 기본 JpaRepository 메서드들 (save, findById, findAll, delete 등)
+
 ---
 
 ## 컨버터
@@ -183,6 +359,36 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 **주요 메서드:**
 - `toEntity(AccountDto)`: DTO를 엔티티로 변환
 - `toDTO(AccountEntity)`: 엔티티를 DTO로 변환
+
+### PageConverter
+
+**경로:** `com.example.TacoHub.Converter.NotionCopyConveter.PageConverter`
+
+**설명:** PageEntity와 PageDTO 간의 변환을 담당하는 컨버터 클래스입니다. 계층 구조를 고려한 변환 기능을 제공합니다.
+
+**주요 메서드:**
+- `toDTO(PageEntity)`: 엔티티를 DTO로 변환
+- `toDTOList(List<PageEntity>)`: 엔티티 리스트를 DTO 리스트로 변환
+
+### WorkSpaceConverter
+
+**경로:** `com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceConverter`
+
+**설명:** WorkSpaceEntity와 WorkSpaceDTO 간의 변환을 담당하는 컨버터 클래스입니다.
+
+**주요 메서드:**
+- `toDTO(WorkSpaceEntity)`: 엔티티를 DTO로 변환
+- `toEntity(WorkSpaceDTO)`: DTO를 엔티티로 변환
+
+### WorkSpaceUserConverter
+
+**경로:** `com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceUserConverter`
+
+**설명:** WorkSpaceUserEntity와 WorkSpaceUserDTO 간의 변환을 담당하는 컨버터 클래스입니다.
+
+**주요 메서드:**
+- `toDTO(WorkSpaceUserEntity)`: 엔티티를 DTO로 변환
+- `toEntity(WorkSpaceUserDTO)`: DTO를 엔티티로 변환
 
 ---
 
@@ -226,6 +432,35 @@ DTO 클래스는 계층 간 데이터 전송을 위한 객체입니다.
 - `handleTechnicalException(TechnicalException)`: 기술적 예외 처리
 - `handleInvalidAuthCodeException(InvalidAuthCodeException)`: 인증 코드 예외 처리
 - `handleInvalidLoginRequestException(InvalidLoginRequestException)`: 잘못된 로그인 요청 예외 처리
+
+---
+
+## 열거형
+
+열거형 클래스는 상수값들을 정의하고 관리합니다.
+
+### WorkSpaceRole
+
+**경로:** `com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole`
+
+**설명:** 워크스페이스 내에서 사용자의 역할을 정의하는 열거형입니다.
+
+**주요 값:**
+- `OWNER`: 워크스페이스 소유자
+- `ADMIN`: 관리자
+- `MEMBER`: 일반 멤버
+- `GUEST`: 게스트
+
+### MembershipStatus
+
+**경로:** `com.example.TacoHub.Enum.NotionCopyEnum.MembershipStatus`
+
+**설명:** 워크스페이스 내에서 사용자의 멤버십 상태를 정의하는 열거형입니다.
+
+**주요 값:**
+- `ACTIVE`: 활성 상태
+- `INVITED`: 초대된 상태
+- `SUSPENDED`: 정지된 상태
 
 ---
 

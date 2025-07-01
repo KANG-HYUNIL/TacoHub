@@ -26,6 +26,6 @@ public class WorkSpaceEntity extends BaseDateEntity {
     private String name; // Workspace Name
 
     @OneToMany(mappedBy = "workspace", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<PageEntity> rootPages = new ArrayList<>();
+    private List<PageEntity> rootPages;
 
 }

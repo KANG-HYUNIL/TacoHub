@@ -43,7 +43,7 @@ public class PageEntity extends BaseDateEntity {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "parentPage", cascade = CascadeType.ALL)
     @OrderBy("orderIndex ASC")
-    private List<PageEntity> childPages = new ArrayList<>();
+    private List<PageEntity> childPages;
 
     @Column(name = "order_index")
     private Integer orderIndex; // Order index for sorting child pages

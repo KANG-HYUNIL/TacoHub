@@ -3,6 +3,7 @@ package com.example.TacoHub.Converter.NotionCopyConveter;
 import com.example.TacoHub.Dto.NotionCopyDTO.PageDTO;
 import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -30,7 +31,7 @@ public class PageConverter {
     {
         if (pageEntities == null || pageEntities.isEmpty())
         {
-            return List.of();
+            return new ArrayList<PageDTO>(); 
         }
 
         return pageEntities.stream()

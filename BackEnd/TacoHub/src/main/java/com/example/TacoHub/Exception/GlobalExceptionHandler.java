@@ -43,5 +43,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
     }
 
+    // WorkSpace 관련 예외 처리
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException.class)
+    public ResponseEntity<?> handleWorkSpaceOperationException(com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException e) {
+        log.error("워크스페이스 작업 실패: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body("워크스페이스 작업 중 오류가 발생했습니다: " + e.getMessage());
+    }
+
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException.class)
+    public ResponseEntity<?> handleWorkSpaceNotFoundException(com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException e) {
+        log.warn("워크스페이스를 찾을 수 없음: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body("요청한 워크스페이스를 찾을 수 없습니다: " + e.getMessage());
+    }
+
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.PageNotFoundException.class)
+    public ResponseEntity<?> handlePageNotFoundException(com.example.TacoHub.Exception.NotionCopyException.PageNotFoundException e) {
+        log.warn("페이지를 찾을 수 없음: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body("요청한 페이지를 찾을 수 없습니다: " + e.getMessage());
+    }
+
 
 }

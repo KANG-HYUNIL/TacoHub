@@ -18,7 +18,7 @@ public class PageDTO extends BaseDateDTO {
     private UUID id;
     private String title; // Page 제목
     private String path; // Page 경로
-    private String blockId; // Page에 속한 Block ID
+    private UUID blockId; // Page에 속한 Block ID
     private Integer orderIndex; // Page의 순서 인덱스
     private Boolean isRoot; // Page가 루트 페이지인지 여부 (서브 페이지가 아닌 경우)
 

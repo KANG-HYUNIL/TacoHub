@@ -10,10 +10,13 @@ import org.springframework.stereotype.Service;
 
 import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceConverter;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
+import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
+
+import jakarta.transaction.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,13 +24,15 @@ import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 public class WorkSpaceService {
 
     private final WorkSpaceRepository workspaceRepository;
+    private final PageService pageService;
 
     /**
      * 새로운 워크스페이스를 생성합니다
      * @param newWorkspaceName 생성할 워크스페이스의 이름
      * @return 생성된 워크스페이스의 DTO
      */
-    public WorkSpaceDTO createWorkspace(String newWorkspaceName)
+    @Transactional
+    public WorkSpaceEntity createWorkspaceEntity(String newWorkspaceName)
     {
         try 
         {   
@@ -36,15 +41,13 @@ public class WorkSpaceService {
             .name(newWorkspaceName)
             .build();
 
-            //이후 pageservice 완성해서 초기 default 생성해 넣어줄거임
-            
-
             WorkSpaceEntity savedEntity = workspaceRepository.save(newWorkSpace);
 
+            //이후 pageservice 완성해서 초기 default 생성해 넣어줄거임
+            pageService.createPageEntity(savedEntity.getId(), null);
+            
 
-            WorkSpaceDTO dto = WorkSpaceConverter.toDTO(savedEntity);
-
-            return dto;
+            return savedEntity;
 
         } catch(Exception e)
         {
@@ -58,20 +61,14 @@ public class WorkSpaceService {
      * @param newWorkspaceName 새로운 워크스페이스 이름
      * @param workspaceId 변경할 워크스페이스의 ID
      */
+    @Transactional
     public void editWorkspaceName(String newWorkspaceName, UUID workspaceId)
     {
         try{
             // 워크스페이스 조회
-            Optional<WorkSpaceEntity> optionalWorkspace = workspaceRepository.findById(workspaceId);
+            WorkSpaceEntity workspace = getWorkSpaceEntityOrThrow(workspaceId);
 
-            if (optionalWorkspace.isEmpty())
-            {
-                log.warn("editWorkspaceName 실패: ID가 존재하지 않음, id={}", workspaceId);
-                throw new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다.");
-            }
-
-            // 이름 변경
-            WorkSpaceEntity workspace = optionalWorkspace.get();
+            // workspace 이름 변경
             workspace.setName(newWorkspaceName);
 
             // 변경된 워크스페이스 저장
@@ -117,19 +114,14 @@ public class WorkSpaceService {
      * @param workspaceId 조회할 워크스페이스의 ID
      * @return 조회된 워크스페이스의 DTO
      */
-    public WorkSpaceDTO getWorkspace(UUID workspaceId)
+    public WorkSpaceDTO getWorkspaceDto(UUID workspaceId)
     {
         try 
         {   
-            Optional<WorkSpaceEntity> workspace = workspaceRepository.findById(workspaceId);
+            // 워크스페이스 조회
+            WorkSpaceEntity workspace = getWorkSpaceEntityOrThrow(workspaceId);
 
-            if (workspace.isEmpty())
-            {
-                log.warn("getWorkspace 실패: ID가 존재하지 않음, id={}", workspaceId);
-                throw new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다.");
-            }
-
-            WorkSpaceDTO dto = WorkSpaceConverter.toDTO(workspace.get());
+            WorkSpaceDTO dto = WorkSpaceConverter.toDTO(workspace);
 
             return dto;
 
@@ -139,6 +131,25 @@ public class WorkSpaceService {
             return null; // 실제로는 도달하지 않음
         } 
         
+    }
+
+    /**
+     * WorkSpaceEntity 를 ID로 조회하고, 없으면 예외를 던지는 메서드
+     * @param workspaceId 조회할 워크스페이스의 Id
+     * @return 조회된 WorkSpaceEntity
+     * @throw WorkSpaceNotFoundException
+     */
+    private WorkSpaceEntity getWorkSpaceEntityOrThrow(UUID workspaceId)
+    {
+        Optional<WorkSpaceEntity> workspace = workspaceRepository.findById(workspaceId);
+
+        if (workspace.isEmpty())
+        {
+            log.warn("getWorkspace 실패: ID가 존재하지 않음, id={}", workspaceId);
+            throw new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다.");
+        }
+
+        return workspace.get();
     }
 
     /**

@@ -17,6 +17,8 @@ import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationExcep
 import com.example.TacoHub.Repository.NotionCopyRepository.PageRepository;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 
+import jakarta.transaction.Transactional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -45,7 +47,8 @@ public class PageService {
      * @param parentPageId 부모 페이지 ID (null일 경우 루트 페이지)
      * @return 생성된 페이지의 DTO
      */
-    public PageDTO createPage(UUID workspaceId, UUID parentPageId)
+    @Transactional
+    public PageEntity createPageEntity(UUID workspaceId, UUID parentPageId)
     {
         try{
             // 기반 workspace 존재 검증
@@ -60,14 +63,7 @@ public class PageService {
             PageEntity parentPage = null;
             if (parentPageId != null)
             {
-                Optional<PageEntity> parentPageOptional = pageRepository.findById(parentPageId);
-                if (parentPageOptional.isEmpty())
-                {
-                    log.warn("Parent page with ID {} not found in workspace {}", parentPageId, workspaceId);
-                    throw new PageNotFoundException("Parent page not found");
-                }
-
-                parentPage = parentPageOptional.get();
+                parentPage = getPageEntityOrThrow(parentPageId);
             }
 
             // page의 block 생성하고 id 얻어내는 과정 필요
@@ -100,11 +96,10 @@ public class PageService {
                 workspaceRepository.save(workspace.get());
             }
 
-            // PageEntity를 PageDTO로 변환
-            PageDTO pageDTO = PageConverter.toDTO(savedPage);
 
             log.info("");
-            return pageDTO;
+            return savedPage;
+
         } catch(Exception e)
         {
             handleAndThrowPageException("createPage", e);
@@ -123,8 +118,20 @@ public class PageService {
     {
         try{
 
+            // PageEntity 존재 여부 확인
+            if (!pageRepository.existsById(pageId))
+            {
+                log.warn("Page with ID {} not found", pageId);
+                throw new PageNotFoundException("Page not found");
+            }
+
+            // PageEntity 삭제
+            pageRepository.deleteById(pageId);
+
+
         } catch(Exception e)
         {
+            //TODO : add logs
             handleAndThrowPageException("deletePage", e);
         }
     }
@@ -134,15 +141,76 @@ public class PageService {
      * @param pageId 조회할 페이지의 ID
      * @return 조회된 페이지의 DTO
      */
-    public PageDTO getPage(UUID pageId)
+    public PageDTO getPageDTO(UUID pageId)
     {
         try{
-            // TODO: 구현 필요
-            return null;
+
+            PageEntity page = getPageEntityOrThrow(pageId);
+
+            // PageEntity를 PageDTO로 변환
+            PageDTO pageDTO = PageConverter.toDTO(page);
+
+            return pageDTO;
+
         } catch(Exception e)
         {
             handleAndThrowPageException("getPage", e);
             return null; // 실제로는 도달하지 않음
+        }
+    }
+
+
+    /**
+     * Page Id를 통해 PageEntity 가져오기 시도 메서드
+     * @param UUID pageId
+     * @return PageEntity 검색 결과  
+     * @throws PageNotFoundException 페이지가 존재하지 않을 경우
+     */
+    private PageEntity getPageEntityOrThrow(UUID pageId)
+    {
+        try {
+            // PageEntity 존재 여부 확인
+            Optional<PageEntity> pageOptional = pageRepository.findById(pageId);
+
+            // 비어 있으면
+            if (pageOptional.isEmpty())
+            {
+                log.warn("Page with ID {} not found", pageId);
+                throw new PageNotFoundException("Page not found");
+            }
+
+            // PageEntity 가져오기
+            PageEntity page = pageOptional.get();
+            return page;
+
+        } catch(Exception e)
+        {
+            handleAndThrowPageException("getPageEntityOrThrow", e);
+            return null;
+        }
+    }
+
+    /**
+     * Page Id를 통해 Page의 Block Id만 가져오는 메서드
+     * @param pageId 검색할 Page의 Id
+     * @return 해당 Page의 Block Id
+     * @throws PageNotFoundException 페이지가 존재하지 않을 경우
+     */
+    public UUID getBlockIdByPageId(UUID pageId)
+    {
+        try{
+            // PageEntity 가져오기
+            PageEntity page = getPageEntityOrThrow(pageId);
+
+            // Block Id 반환
+            UUID blockId =  page.getBlockId();
+            return blockId;
+
+
+        } catch(Exception e)
+        {
+            handleAndThrowPageException("getBlockIdByPageId", e);
+            return null;
         }
     }
 
@@ -151,12 +219,25 @@ public class PageService {
      * @param pageId 수정할 페이지의 ID
      * @param newName 새로운 페이지 제목
      */
+    @Transactional
     public void editPageName(UUID pageId, String newName)
     {
         try{
+            // PageEntity 가져오기
+            PageEntity page = getPageEntityOrThrow(pageId);
+
+            // TODO : Page Title 제약 검증(이후 필요 시 추가)
+
+            // 페이지 제목 수정
+            page.setTitle(newName);
+
+            // 페이지 저장
+            pageRepository.save(page);
+
 
         } catch(Exception e)
-        {
+        {   
+
             handleAndThrowPageException("editPageName", e);
         }
     } 

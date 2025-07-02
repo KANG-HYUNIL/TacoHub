@@ -31,7 +31,7 @@ public class PageEntity extends BaseDateEntity {
     private String path; // Page Path
 
     @Column(name = "block_id")
-    private String blockId; // Block ID associated with the page
+    private UUID blockId; // Block ID associated with the page
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)

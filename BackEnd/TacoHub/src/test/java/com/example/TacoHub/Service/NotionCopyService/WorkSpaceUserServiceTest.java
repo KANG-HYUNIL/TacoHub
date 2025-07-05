@@ -1,4 +1,4 @@
-package com.example.TacoHub.Service.NotionCopyTest;
+package com.example.TacoHub.Service.NotionCopyService;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

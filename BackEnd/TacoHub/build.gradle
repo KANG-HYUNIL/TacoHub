@@ -25,7 +25,10 @@ repositories {
 
 dependencies {
 
+	//environment variables dependency
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+	//jpa dependency
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
 	//mongodb dependency
@@ -33,10 +36,18 @@ dependencies {
 
 	//redis dependency
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	//email dependency
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	//web dependency
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+	//security dependency
 	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	//validation dependency
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
 
@@ -44,6 +55,7 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
+	//session redis dependency
 	implementation 'org.springframework.session:spring-session-data-redis'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -53,7 +65,12 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
 	annotationProcessor 'org.projectlombok:lombok'
+	
+	// test dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.junit.jupiter:junit-jupiter:'
+	testImplementation 'org.mockito:mockito-core'
+	testImplementation 'org.assertj:assertj-core'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

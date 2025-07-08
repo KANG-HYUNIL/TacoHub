@@ -65,5 +65,28 @@ public class GlobalExceptionHandler {
             .body("요청한 페이지를 찾을 수 없습니다: " + e.getMessage());
     }
 
+    // 페이지 관련 예외 처리
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.PageOperationException.class)
+    public ResponseEntity<?> handlePageOperationException(com.example.TacoHub.Exception.NotionCopyException.PageOperationException e) {
+        log.error("페이지 작업 실패: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body("페이지 작업 중 오류가 발생했습니다: " + e.getMessage());
+    }
+
+    // 블록 관련 예외 처리
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.BlockNotFoundException.class)
+    public ResponseEntity<?> handleBlockNotFoundException(com.example.TacoHub.Exception.NotionCopyException.BlockNotFoundException e) {
+        log.warn("블록을 찾을 수 없음: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body("요청한 블록을 찾을 수 없습니다: " + e.getMessage());
+    }
+
+    @ExceptionHandler(com.example.TacoHub.Exception.NotionCopyException.BlockOperationException.class)
+    public ResponseEntity<?> handleBlockOperationException(com.example.TacoHub.Exception.NotionCopyException.BlockOperationException e) {
+        log.error("블록 작업 실패: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body("블록 작업 중 오류가 발생했습니다: " + e.getMessage());
+    }
+
 
 }

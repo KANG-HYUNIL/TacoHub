@@ -20,6 +20,7 @@ import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
+import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 import static org.assertj.core.api.Assertions.*;
 
@@ -170,18 +171,75 @@ public class WorkSpaceServiceTest {
     @Test
     @DisplayName("워크스페이스 조회 성공 테스트")
     void getWorkspaceDto_ValidId_ReturnsWorkspaceDto() {
-        // TODO: 구현 예정
+        // Given - 유효한 워크스페이스 ID와 기대되는 엔티티 및 DTO 설정
+        UUID workspaceId = UUID.randomUUID();
+        String workspaceName = "Test Workspace";
+        
+        // 조회될 워크스페이스 엔티티 모의 객체 생성
+        WorkSpaceEntity mockWorkspace = WorkSpaceEntity.builder()
+                .id(workspaceId)
+                .name(workspaceName)
+                .build();
+        
+        // Repository가 해당 ID로 조회 시 위의 엔티티를 반환하도록 모의 설정
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(mockWorkspace));
+        
+        // When - 워크스페이스 DTO 조회 메서드 실행
+        WorkSpaceDTO result = workSpaceService.getWorkspaceDto(workspaceId);
+        
+        // Then - 반환된 DTO가 올바른지 검증
+        assertThat(result).isNotNull(); // DTO가 null이 아님을 확인
+        assertThat(result.getId()).isEqualTo(workspaceId); // ID가 요청한 ID와 일치하는지 확인
+        assertThat(result.getName()).isEqualTo(workspaceName); // 이름이 예상한 이름과 일치하는지 확인
+        
+        // Repository의 findById 메서드가 올바른 ID로 호출되었는지 검증
+        verify(workspaceRepository).findById(workspaceId);
     }
 
     @Test
     @DisplayName("워크스페이스 조회 실패 - 존재하지 않는 ID")
     void getWorkspaceDto_NonExistentId_ThrowsException() {
-        // TODO: 구현 예정
+        // Given - 존재하지 않는 워크스페이스 ID 설정
+        UUID nonExistentId = UUID.randomUUID();
+        
+        // Repository가 해당 ID로 조회 시 빈 Optional을 반환하도록 모의 설정
+        when(workspaceRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+        
+        // When & Then - 예외 발생을 검증
+        // 존재하지 않는 ID로 조회 시 WorkSpaceNotFoundException이 발생해야 함
+        assertThatThrownBy(() -> workSpaceService.getWorkspaceDto(nonExistentId))
+                .isInstanceOf(WorkSpaceNotFoundException.class)
+                .hasMessageContaining("WorkSpace not found");
+        
+        // Repository의 findById 메서드가 호출되었는지 검증
+        verify(workspaceRepository).findById(nonExistentId);
     }
 
     @Test
     @DisplayName("워크스페이스 엔티티 조회 성공 테스트")
     void getWorkSpaceEntityOrThrow_ValidId_ReturnsEntity() {
-        // TODO: 구현 예정 (private 메서드이므로 간접 테스트)
+        // Given - private 메서드이므로 간접 테스트 (getWorkspaceDto를 통해 테스트)
+        UUID workspaceId = UUID.randomUUID();
+        String workspaceName = "Test Workspace";
+        
+        // getWorkSpaceEntityOrThrow는 private 메서드이므로 
+        // getWorkspaceDto 메서드를 통해 간접적으로 테스트
+        WorkSpaceEntity mockWorkspace = WorkSpaceEntity.builder()
+                .id(workspaceId)
+                .name(workspaceName)
+                .build();
+        
+        // Repository 모의 설정
+        when(workspaceRepository.findById(workspaceId)).thenReturn(Optional.of(mockWorkspace));
+        
+        // When - getWorkspaceDto를 호출하여 간접적으로 getWorkSpaceEntityOrThrow 테스트
+        WorkSpaceDTO result = workSpaceService.getWorkspaceDto(workspaceId);
+        
+        // Then - 정상적으로 DTO가 반환되면 내부적으로 엔티티 조회가 성공했음을 의미
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(workspaceId);
+        
+        // Repository가 정확히 한 번 호출되었는지 검증 (getWorkSpaceEntityOrThrow 내부에서 호출)
+        verify(workspaceRepository).findById(workspaceId);
     }
 }

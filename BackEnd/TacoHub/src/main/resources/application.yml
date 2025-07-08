@@ -1,49 +1,52 @@
-
 server:
-  5000
+  port: 5000
 
+# AWS 전역 설정 (모든 환경에서 공통으로 사용)
 cloud:
   aws:
     region:
-        static: ap-northeast-2
+      static: ${AWS_REGION:ap-northeast-2}
     credentials:
-        access-key: # TODO: 
-        secret-key: # TODO : 
-
+      access-key: ${AWS_ACCESS_KEY_ID:} # 환경변수에서 주입 (운영환경에서는 Instance Profile 사용 권장)
+      secret-key: ${AWS_SECRET_ACCESS_KEY:} # 환경변수에서 주입 (운영환경에서는 Instance Profile 사용 권장)
     stack:
-        auto: false
-
+      auto: false
     s3:
-      bucket: # TODO :
+      bucket: ${AWS_S3_BUCKET_NAME:tacohub-audit-logs} # 환경변수에서 주입
+      batch-size: ${AWS_S3_BATCH_SIZE:1000}
+      flush-interval: ${AWS_S3_FLUSH_INTERVAL:300000}   # 5분 (밀리초)
+      compression: true        # GZIP 압축
+      lifecycle:
+          standard: 90           # Standard 90일
+          ia: 365                # IA 1년
+          glacier: 2555          # Glacier 7년
+      retention:
+        days: 2555               # S3 장기 보관 (7년)
+    logs:
+      # CloudWatch Logs 기본 설정 (환경별로 다른 값은 logback-spring.xml에서 처리)
+      group: ${AWS_CLOUDWATCH_LOG_GROUP_PROD:/aws/ec2/tacohub}
+      retention:
+        days: 30
 
 jwt:
   access:
-    secret: # TODO :
-    expiration: 36000000
-
+    secret: ${JWT_ACCESS_SECRET:} # 환경변수에서 주입
+    expiration: ${JWT_ACCESS_EXPIRATION:36000000}  # 10시간 (밀리초)
   refresh:
-    secret: # TODO : 
-    expiration: 204800000
+    secret: ${JWT_REFRESH_SECRET:} # 환경변수에서 주입
+    expiration: ${JWT_REFRESH_EXPIRATION:204800000}  # 약 57시간 (밀리초)
 
-spring:
-
-  profiles:
-    active: local
-
-  servlet:
-    multipart:
-      max-file-size: 300MB
-      max-request-size: 300MB
-
+# 이메일 설정 (향후 사용 예정)
+#spring:
 #  mail:
-#    host: smtp.gmail.com
-#    port: 587
-#    username: usk883135@gmail.com #?? ??
-#    password: vwwvejgrqsalzcym #? ????
-#    protocol : smtp #??? ???
+#    host: ${MAIL_HOST:smtp.gmail.com}
+#    port: ${MAIL_PORT:587}
+#    username: ${MAIL_USERNAME:} # 환경변수에서 주입
+#    password: ${MAIL_PASSWORD:} # 환경변수에서 주입
+#    protocol: smtp
 #    properties:
 #      mail:
-#        protocol : smtp #??? ???
+#        protocol: smtp
 #        smtp:
 #          auth: true
 #          starttls:
@@ -52,82 +55,97 @@ spring:
 #          connectiontimeout: 20000
 #          timeout: 20000
 #          writetimeout: 20000
-#    auth-code-expiration: 900000 # 15?
+#    auth-code-expiration: ${MAIL_AUTH_CODE_EXPIRATION:900000}  # 15분
+
+spring:
+  application:
+    name: TacoHub
+  profiles:
+    active: local
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 300MB
+
 
 ---
-
+# Local 개발 환경 설정
 spring:
   config:
     activate:
       on-profile: local
 
-#  datasource:
-#    url: jdbc:mysql://your-rds-endpoint:3306/your-db-name
-#    username: admin
-#    password: tacobackend
-#    driver-class-name: com.mysql.cj.jdbc.Driver
-#
-#  jpa:
-#    hibernate:
-#      ddl-auto: update  # ??: ?? ????? validate ??
-#    show-sql: true
-#    open-in-view: false
+  # Local 로깅: Console + File
+  logging:
+    level:
+      root: DEBUG
+      com.example.TacoHub: DEBUG
+      com.example.TacoHub.Logging: DEBUG
+      AUDIT: INFO
+    pattern:
+      console: "%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
 
-#  redis:
-#      #host: taco-3-team1-diary-redis-7f0usp.serverless.apn2.cache.amazonaws.com
-#      host : localhost
-#      port: 6379 #6379
-#      ssl: false
-#      password :
+  # Local 감사 로깅 설정
+  audit:
+    log:
+      storage:
+        type: file
+      async: true
 
-#  #mongoDb ?? ??
-#  data :
-#    mongodb :
-#      uri : mongodb+srv://springboot_user:hi882735@springboot.jbtz1.mongodb.net/?retryWrites=true&w=majority&appName=springBoot
-#      database : springBootDocuments # db ??
+  # Local 개발 DB 설정 (향후 사용)
+  #datasource:
+  #  url: ${DB_URL_LOCAL:jdbc:mysql://localhost:3306/tacohub_local}
+  #  username: ${DB_USERNAME:admin}
+  #  password: ${DB_PASSWORD:tacobackend}
+  #  driver-class-name: com.mysql.cj.jdbc.Driver
+  #
+  #jpa:
+  #  hibernate:
+  #    ddl-auto: update
+  #  show-sql: true
+  #  open-in-view: false
 
----
+  # Local Redis 설정 (향후 사용)
+  #redis:
+  #  host: ${REDIS_HOST_LOCAL:localhost}
+  #  port: ${REDIS_PORT:6379}
+  #  ssl: false
+  #  password: ${REDIS_PASSWORD:}
 
-spring:
-  config:
-    activate:
-      on-profile: prod
+  # Local MongoDB 설정 (향후 사용)
+  #data:
+  #  mongodb:
+  #    uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
+  #    database: ${MONGODB_DATABASE_LOCAL:tacohub_local}
 
-#  datasource:
-#    url: jdbc:mysql://your-rds-endpoint:3306/your-db-name
-#    username: admin
-#    password: tacobackend
-#    driver-class-name: com.mysql.cj.jdbc.Driver
-#
-#  jpa:
-#    hibernate:
-#      ddl-auto: update  # ??: ?? ????? validate ??
-#    show-sql: true
-#    open-in-view: false
-
-#  redis:
-#      #host: taco-3-team1-diary-redis-7f0usp.serverless.apn2.cache.amazonaws.com
-#      host : localhost
-#      port: 6379 #6379
-#      ssl: false
-#      password :
-
-#  #mongoDb ?? ??
-#  data :
-#    mongodb :
-#      uri : mongodb+srv://springboot_user:hi882735@springboot.jbtz1.mongodb.net/?retryWrites=true&w=majority&appName=springBoot
-#      database : springBootDocuments # db ??
 
 
 
 ---
-
+# Test/Staging 환경 설정
 spring:
   config:
     activate:
       on-profile: test
 
-  # test inmemory db
+  # Test 로깅: File + CloudWatch (ERROR/WARN)
+  logging:
+    level:
+      root: INFO
+      com.example.TacoHub: INFO
+      AUDIT: INFO
+    config: classpath:logback-spring.xml
+
+  # Test 감사 로깅 설정
+  audit:
+    log:
+      storage:
+        type: multi           # file + cloudwatch
+      cloudwatch:
+        enabled: true
+        error-only: true      # ERROR/WARN만 CloudWatch 전송
+
+  # Test DB 설정 (H2 메모리 DB)
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -136,18 +154,74 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto : create-drop
+      ddl-auto: create-drop
     show-sql: true
     database-platform: org.hibernate.dialect.H2Dialect
 
+  # Test Redis 설정
   redis:
-    host : localhost
-    port: 6379 #6379
+    host: ${REDIS_HOST_LOCAL:localhost}
+    port: ${REDIS_PORT:6379}
     ssl: false
-    password :
+    password: ${REDIS_PASSWORD:}
 
-  #mongoDb ?? ??
-  data :
-    mongodb :
-      uri : localhost # TODO : 
-      database :  localhost # db name
+  # Test MongoDB 설정
+  data:
+    mongodb:
+      uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
+      database: tacohub_test
+
+---
+# 운영(Production) 환경 설정
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Production 로깅: CloudWatch + S3 (모든 레벨)
+  logging:
+    level:
+      root: INFO
+      com.example.TacoHub: INFO
+      AUDIT: INFO
+    config: classpath:logback-spring.xml
+
+  # Production 감사 로깅 설정
+  audit:
+    log:
+      storage:
+        type: multi              # file + cloudwatch + s3
+      cloudwatch:
+        enabled: true
+        all-levels: true         # 모든 레벨을 CloudWatch에 전송
+        retention:
+          error: 30              # ERROR 로그 30일 보관
+          info: 7                # INFO 로그 7일 보관
+
+
+  # Production DB 설정 (향후 RDS 연결)
+  #datasource:
+  #  url: ${DB_URL_PROD:jdbc:mysql://your-rds-endpoint:3306/tacohub_prod}
+  #  username: ${DB_USERNAME:admin}
+  #  password: ${DB_PASSWORD:tacobackend}
+  #  driver-class-name: com.mysql.cj.jdbc.Driver
+  #
+  #jpa:
+  #  hibernate:
+  #    ddl-auto: validate  # 운영환경에서는 validate 사용
+  #  show-sql: false
+  #  open-in-view: false
+
+  # Production Redis 설정 (향후 ElastiCache 연결)
+  #redis:
+  #  host: ${REDIS_HOST_PROD:taco-redis-cluster.cache.amazonaws.com}
+  #  port: ${REDIS_PORT:6379}
+  #  ssl: true
+  #  password: ${REDIS_PASSWORD:}
+
+  # Production MongoDB 설정 (향후 DocumentDB 연결)
+  #data:
+  #  mongodb:
+  #    uri: ${MONGODB_URI_PROD:mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority}
+  #    database: ${MONGODB_DATABASE_PROD:tacohub_prod}
+

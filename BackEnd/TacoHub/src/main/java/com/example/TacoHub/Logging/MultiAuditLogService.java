@@ -1,0 +1,101 @@
+package com.example.TacoHub.Logging;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 복합 감사 로그 저장 서비스
+ * 여러 저장소에 동시에 로그를 저장 (CloudWatch + S3 + File)
+ * 
+ * 저장 전략:
+ * - 모든 로그 → File (로컬 백업)
+ * - 모든 로그 → CloudWatch (실시간 모니터링, 단기 보관)
+ * - 모든 로그 → S3 (장기 보관, 압축)
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@ConditionalOnProperty(name = "audit.log.storage.type", havingValue = "multi")
+public class MultiAuditLogService implements AuditLogService {
+
+    private final FileAuditLogService fileAuditLogService;
+    private final S3AuditLogService s3AuditLogService;
+    // private final CloudWatchAuditLogService cloudWatchAuditLogService; // TODO: 구현 예정
+
+    @Override
+    public void save(AuditLog auditLog) {
+        // 모든 저장소에 순차적으로 저장 (동기)
+        saveToAllStorages(auditLog);
+    }
+
+    @Override
+    @Async("auditLogExecutor")
+    public void saveAsync(AuditLog auditLog) {
+        // 모든 저장소에 비동기로 저장
+        saveToAllStorages(auditLog);
+    }
+
+    /**
+     * 모든 저장소에 로그 저장
+     * 하나의 저장소 실패가 다른 저장소에 영향을 주지 않도록 독립적으로 처리
+     */
+    private void saveToAllStorages(AuditLog auditLog) {
+        String traceId = auditLog.getTraceId();
+        
+        // 1. 파일 저장 (가장 빠름, 로컬 백업)
+        try {
+            fileAuditLogService.save(auditLog);
+            log.debug("파일 저장 성공: traceId={}", traceId);
+        } catch (Exception e) {
+            log.error("파일 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+        }
+
+        // 2. S3 저장 (장기 보관, 압축)
+        try {
+            s3AuditLogService.save(auditLog);
+            log.debug("S3 저장 성공: traceId={}", traceId);
+        } catch (Exception e) {
+            log.error("S3 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+        }
+
+        // 3. CloudWatch 저장 (실시간 모니터링)
+        // 현재는 logback-spring.xml의 AUDIT Logger로 처리됨
+        // 별도 CloudWatch 서비스 구현 시 여기에 추가
+        
+        log.debug("복합 저장 완료: traceId={}", traceId);
+    }
+
+    /**
+     * 병렬 저장 방식 (선택적 사용)
+     * 성능은 향상되지만 에러 처리가 복잡해짐
+     */
+    @Async("auditLogExecutor")
+    public void saveParallel(AuditLog auditLog) {
+        String traceId = auditLog.getTraceId();
+        
+        // Runnable 리스트를 사용한 병렬 처리
+        List<Runnable> tasks = List.of(
+            () -> {
+                try {
+                    fileAuditLogService.saveAsync(auditLog);
+                } catch (Exception e) {
+                    log.error("파일 병렬 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+                }
+            },
+            () -> {
+                try {
+                    s3AuditLogService.saveAsync(auditLog);
+                } catch (Exception e) {
+                    log.error("S3 병렬 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+                }
+            }
+        );
+        
+        tasks.parallelStream().forEach(Runnable::run);
+    }
+}

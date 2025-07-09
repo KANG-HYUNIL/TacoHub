@@ -3,18 +3,17 @@ package com.example.TacoHub.Service.NotionCopyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
-import com.example.TacoHub.Converter.NotionCopyConveter.PageConverter;
-import com.example.TacoHub.Dto.NotionCopyDTO.PageDTO;
 import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Exception.NotionCopyException.PageNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.PageOperationException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
+import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
 import com.example.TacoHub.Repository.NotionCopyRepository.PageRepository;
-import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -24,151 +23,129 @@ import jakarta.transaction.Transactional;
 public class PageService {
 
     private final PageRepository pageRepository;
-    private final BlockService blockService; // TODO: 블록 기능 구현 시 활성화
-    private final WorkSpaceRepository workspaceRepository;
+    private final WorkSpaceService workSpaceService;
+    private final BlockService blockService;
+
 
     private final String newPageName = "New Page";
+    private final Float defaultOrderIndex = 100f; // 기본 순서 인덱스
 
     /**
-     * 기존 페이지 내용을 복사하여 새로운 페이지를 만듭니다
-     * @param pageId 복사할 페이지의 ID
-     * @param workspaceId 대상 워크스페이스 ID
-     * @param parentPageId 부모 페이지 ID (null일 경우 루트 페이지)
+     * Workspace Root PageEntity를 생성하고 저장하는 메서드
+     * @param workspaceId 워크스페이스 ID
+     * @return PageEntity 생성된 페이지 엔티티
+     * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 경우
      */
-    public void copyPage(UUID pageId, UUID workspaceId, UUID parentPageId)
-    {
-
+    public PageEntity createPageEntity(UUID workspaceId) {
+        return createPageEntity(workspaceId, null);
     }
 
+
     /**
-     * 새로운 페이지를 생성합니다
-     * @param workspaceId 페이지를 생성할 워크스페이스 ID
-     * @param parentPageId 부모 페이지 ID (null일 경우 루트 페이지)
-     * @return 생성된 페이지의 Entity
+     * PageEntity를 생성하고 저장하는 메서드
+     * @param workspaceId 워크스페이스 ID
+     * @param parentPagId 부모 페이지 ID (null일 경우 최상위 페이지로 생성)
+     * @return PageEntity 생성된 페이지 엔티티
+     * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 경우
      */
     @Transactional
-    public PageEntity createPageEntity(UUID workspaceId, UUID parentPageId) {
+    public PageEntity createPageEntity(UUID workspaceId, UUID parentPagId) {
+   
         try {
-            log.info("페이지 생성 시작: workspaceId={}, parentPageId={}", workspaceId, parentPageId);
-            
+
+            log.info("createPageEntity Start : workspaceId={}, parentPageId={}", workspaceId, parentPagId);
+
             // 입력값 검증
             if (workspaceId == null) {
+                log.warn("워크스페이스 ID가 null");
                 throw new PageOperationException("워크스페이스 ID는 필수입니다");
             }
 
-            // 기반 workspace 존재 검증
-            WorkSpaceEntity workspace = workspaceRepository.findById(workspaceId)
-                    .orElseThrow(() -> new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다: " + workspaceId));
+            // 워크스페이스 조회, workspace 없으면 메서드 측에서 error throw
+            WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
 
-            // 부모 page 존재 검증 (parentPageId가 있는 경우)
-            PageEntity parentPage = null;
-            if (parentPageId != null) {
-                parentPage = getPageEntityOrThrow(parentPageId);
-                
-                // 부모 페이지가 같은 워크스페이스에 속하는지 확인
-                if (!parentPage.getWorkspace().getId().equals(workspaceId)) {
-                    throw new PageOperationException("부모 페이지와 같은 워크스페이스에만 자식 페이지를 생성할 수 있습니다");
-                }
-            }
 
-            // 새 PageEntity 생성
+            //PageEntity 생성
             PageEntity newPage = PageEntity.builder()
-                    .title(newPageName)
-                    .workspace(workspace)
-                    .parentPage(parentPage)
-                    .isRoot(parentPage == null)
-                    .orderIndex(0) // TODO: 적절한 순서 인덱스 계산 로직 추가
-                    .build();
+                .title(newPageName)
+                .workspace(workspace) // 워크스페이스 설정
+                .parentPage(parentPagId != null ? getPageEntityOrThrow(parentPagId) : null)
+                .orderIndex(defaultOrderIndex) // 기본 순서 인덱스 = 100f
+                .isRoot(parentPagId == null) // 부모 페이지가 없으면 루트 페이지
+                .build();
 
-            // page 저장
+            // 페이지 저장
             PageEntity savedPage = pageRepository.save(newPage);
+            log.info("createPageEntity Success : pageId={}, title={}", savedPage.getId(), savedPage.getTitle());
 
-            // 부모가 있는 page면 부모 page에 새 page 추가
-            if (parentPage != null) {
-                addChildPage(parentPage, savedPage);
-                // 📄 비즈니스 이벤트: 자식 페이지 생성
-                log.info("자식 페이지 생성 완료: pageId={}, parentPageId={}, workspaceId={}, title={}", 
-                        savedPage.getId(), parentPageId, workspaceId, savedPage.getTitle());
-            } else {
-                // 루트 page면 workspace에 root page로 추가
-                workspace.getRootPages().add(savedPage);
-                workspaceRepository.save(workspace);
-                // 📄 비즈니스 이벤트: 루트 페이지 생성
-                log.info("루트 페이지 생성 완료: pageId={}, workspaceId={}, title={}", 
-                        savedPage.getId(), workspaceId, savedPage.getTitle());
-            }
-
-            log.info("페이지 생성 완료: pageId={}, workspaceId={}", savedPage.getId(), workspaceId);
+            // Page return
             return savedPage;
 
-        } catch (WorkSpaceNotFoundException | PageNotFoundException | PageOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
+        } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e)
+        {
+            // 의도된 비즈니스 에러는 상위로 전파
+            log.warn("워크스페이스 조회 비즈니스 오류: workspaceId={}, 원인={}", workspaceId, e.getMessage());
             throw e;
-        } catch (Exception e) {
-            // 예상치 못한 예외는 래핑해서 전파
-            handleAndThrowPageException("createPage", e);
-            return null; // 실제로는 도달하지 않음
         }
+        catch (PageOperationException e)
+        {
+            // 페이지 관련 비즈니스 예외는 그대로 전파
+            log.warn("페이지 생성 비즈니스 오류: workspaceId={}, parentPageId={}, 원인={}", 
+                    workspaceId, parentPagId, e.getMessage());
+            throw e;
+        }
+        catch (Exception e) {
+            // 기타 예외는 공통 예외 처리 메서드로 처리
+            handleAndThrowPageException("createPageEntity", e);
+            return null;
+        }
+
+
     }
 
+
     /**
-     * 페이지를 삭제합니다
-     * @param pageId 삭제할 페이지의 ID
+     * Workspace Id를 통해 PageEntity 삭제 하는 메서드
+     * @param workspaceId
+     * @return
      */
     @Transactional
-    public void deletePage(UUID pageId) {
+    public void deletePageEntityByWorkspaceId(UUID workspaceId) {
         try {
-            log.info("페이지 삭제 시작: pageId={}", pageId);
-            
+            log.info("deletePageEntityByWorkspaceId Start : workspaceId={}", workspaceId);
+
             // 입력값 검증
-            if (pageId == null) {
-                throw new PageOperationException("페이지 ID는 필수입니다");
+            if (workspaceId == null) {
+                log.warn("워크스페이스 ID가 null");
+                throw new PageOperationException("워크스페이스 ID는 필수입니다");
             }
 
-            // PageEntity 존재 여부 확인 (존재하지 않으면 예외 발생)
-            if (!pageRepository.existsById(pageId)) {
-                throw new PageNotFoundException("페이지가 존재하지 않습니다: " + pageId);
+            // Workspace의 모든 page 가져와야 함
+            List<PageEntity> pages = pageRepository.findAllByWorkspace_Id(workspaceId);
+
+            // Page들에 대해 block 제거 시작
+            for (PageEntity page : pages) {
+                // TODO : Page의 모든 Block 제거
+                blockService.deleteBlockByPageId(page.getId());
             }
 
-            // PageEntity 삭제
-            pageRepository.deleteById(pageId);
-            
-            // 📄 비즈니스 이벤트: 페이지 삭제 완료
-            log.warn("페이지 삭제 실행: pageId={} - 데이터 손실 가능성", pageId);
-            log.info("페이지 삭제 완료: pageId={}", pageId);
+            // 해당 워크스페이스의 모든 페이지 삭제
+            pageRepository.deleteByWorkspace_Id(workspaceId);
+            log.info("deletePageEntityByWorkspaceId Success : workspaceId={}", workspaceId);
 
-        } catch (PageNotFoundException | PageOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
-            throw e;
-        } catch (Exception e) {
-            // 예상치 못한 예외는 래핑해서 전파
-            handleAndThrowPageException("deletePage", e);
-        }
-    }
-
-    /**
-     * 페이지 정보를 조회합니다
-     * @param pageId 조회할 페이지의 ID
-     * @return 조회된 페이지의 DTO
-     */
-    public PageDTO getPageDTO(UUID pageId)
-    {
-        try{
-
-            PageEntity page = getPageEntityOrThrow(pageId);
-
-            // PageEntity를 PageDTO로 변환
-            PageDTO pageDTO = PageConverter.toDTO(page);
-
-            return pageDTO;
-
-        } catch(Exception e)
+        } 
+        catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) 
         {
-            handleAndThrowPageException("getPage", e);
-            return null; // 실제로는 도달하지 않음
+            // 의도된 비즈니스 예외는 그대로 전파
+            log.warn("워크스페이스 조회 비즈니스 오류: workspaceId={}, 원인={}", workspaceId, e.getMessage());
+            throw e;
+        } 
+        catch (Exception e) 
+        {
+            // 기타 예외는 공통 예외 처리 메서드로 처리
+            handleAndThrowPageException("deletePageEntityByWorkspaceId", e);
         }
     }
-
 
     /**
      * Page Id를 통해 PageEntity 가져오기 시도 메서드
@@ -176,7 +153,7 @@ public class PageService {
      * @return PageEntity 검색 결과  
      * @throws PageNotFoundException 페이지가 존재하지 않을 경우
      */
-    private PageEntity getPageEntityOrThrow(UUID pageId) {
+    public PageEntity getPageEntityOrThrow(UUID pageId) {
         return pageRepository.findById(pageId)
                 .orElseThrow(() -> {
                     log.warn("페이지 조회 실패: ID가 존재하지 않음, pageId={}", pageId);
@@ -184,76 +161,6 @@ public class PageService {
                 });
     }
 
-    /**
-     * Page Id를 통해 Page의 Block Id만 가져오는 메서드
-     * @param pageId 검색할 Page의 Id
-     * @return 해당 Page의 Block Id
-     * @throws PageNotFoundException 페이지가 존재하지 않을 경우
-     */
-    public UUID getBlockIdByPageId(UUID pageId)
-    {
-        try{
-            // PageEntity 가져오기
-            PageEntity page = getPageEntityOrThrow(pageId);
-
-            // Block Id 반환
-            UUID blockId =  page.getBlockId();
-            return blockId;
-
-
-        } catch(Exception e)
-        {
-            handleAndThrowPageException("getBlockIdByPageId", e);
-            return null;
-        }
-    }
-
-    /**
-     * 페이지 제목을 수정합니다
-     * @param pageId 수정할 페이지의 ID
-     * @param newName 새로운 페이지 제목
-     */
-    @Transactional
-    public void editPageName(UUID pageId, String newName)
-    {
-        try{
-            // PageEntity 가져오기
-            PageEntity page = getPageEntityOrThrow(pageId);
-
-            // TODO : Page Title 제약 검증(이후 필요 시 추가)
-
-            // 페이지 제목 수정
-            page.setTitle(newName);
-
-            // 페이지 저장
-            pageRepository.save(page);
-
-
-        } catch(Exception e)
-        {   
-
-            handleAndThrowPageException("editPageName", e);
-        }
-    } 
-
-    /**
-     * 양방향 관계 설정을 위해 부모 페이지에 자식 페이지 정보를 추가합니다
-     * @param parentPage 부모 페이지 엔티티
-     * @param childPage 자식 페이지 엔티티
-     */
-    public void addChildPage(PageEntity parentPage, PageEntity childPage)
-    {          
-        try{
-            //parent page의 childPages에 새 page 추가 후 저장
-            parentPage.getChildPages().add(childPage);
-            pageRepository.save(parentPage);
-
-        } catch(Exception e)
-        {
-            handleAndThrowPageException("addChildPage", e);
-        }
- 
-    }
 
     /**
      * 공통 Page 예외 처리 메서드

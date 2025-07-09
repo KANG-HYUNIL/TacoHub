@@ -92,31 +92,32 @@ spring:
         type: file
       async: true
 
-  # Local 개발 DB 설정 (향후 사용)
-  #datasource:
-  #  url: ${DB_URL_LOCAL:jdbc:mysql://localhost:3306/tacohub_local}
-  #  username: ${DB_USERNAME:admin}
-  #  password: ${DB_PASSWORD:tacobackend}
-  #  driver-class-name: com.mysql.cj.jdbc.Driver
-  #
-  #jpa:
-  #  hibernate:
-  #    ddl-auto: update
-  #  show-sql: true
-  #  open-in-view: false
+  # Local 개발 DB 설정 (H2 메모리 DB 사용)
+  datasource:
+    url: jdbc:h2:mem:devdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    open-in-view: false
+    database-platform: org.hibernate.dialect.H2Dialect
 
-  # Local Redis 설정 (향후 사용)
-  #redis:
-  #  host: ${REDIS_HOST_LOCAL:localhost}
-  #  port: ${REDIS_PORT:6379}
-  #  ssl: false
-  #  password: ${REDIS_PASSWORD:}
+  # local Redis 설정
+  redis:
+    host: ${REDIS_HOST_LOCAL:localhost}
+    port: ${REDIS_PORT:6379}
+    ssl: false
+    password: ${REDIS_PASSWORD:}
 
-  # Local MongoDB 설정 (향후 사용)
-  #data:
-  #  mongodb:
-  #    uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
-  #    database: ${MONGODB_DATABASE_LOCAL:tacohub_local}
+  # Local MongoDB 설정
+  data:
+    mongodb:
+      uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
+      database: ${MONGODB_DATABASE_LOCAL:tacohub_local}
 
 
 

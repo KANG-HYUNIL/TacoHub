@@ -42,4 +42,8 @@ public interface BlockDocumentRepository extends MongoRepository<BlockDocument, 
      * @return 블록 (삭제되지 않은 것만)
      */
     Optional<BlockDocument> findByIdAndIsDeleted(UUID id, Boolean isDeleted);
+
+
+    // PageId로 모든 block 삭제
+    void deleteByPageId(UUID pageId);
 }

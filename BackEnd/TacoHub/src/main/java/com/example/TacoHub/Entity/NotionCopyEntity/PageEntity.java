@@ -30,9 +30,6 @@ public class PageEntity extends BaseDateEntity {
     @Column(name = "path")
     private String path; // Page Path
 
-    @Column(name = "block_id")
-    private UUID blockId; // Block ID associated with the page
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)
     private WorkSpaceEntity workspace; // Workspace to which this page belongs
@@ -46,7 +43,7 @@ public class PageEntity extends BaseDateEntity {
     private List<PageEntity> childPages;
 
     @Column(name = "order_index")
-    private Integer orderIndex; // Order index for sorting child pages
+    private Float orderIndex; // Order index for sorting child pages
 
     @Column(name="is_root", nullable = false)
     private Boolean isRoot; // Indicates if this page is a root page (not a sub-page)

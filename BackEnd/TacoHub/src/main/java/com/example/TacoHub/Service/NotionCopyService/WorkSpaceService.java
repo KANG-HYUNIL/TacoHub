@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 
 import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceConverter;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
+import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
+import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 
 import jakarta.transaction.Transactional;
@@ -23,6 +25,8 @@ public class WorkSpaceService {
 
     private final WorkSpaceRepository workspaceRepository;
     private final PageService pageService;
+    private final WorkSpaceUserService workSpaceUserService;
+    private final UserInfoExtractor userInfoExtractor;
 
     /**
      * 새로운 워크스페이스를 생성합니다
@@ -52,10 +56,24 @@ public class WorkSpaceService {
             WorkSpaceEntity savedEntity = workspaceRepository.save(newWorkSpace);
 
             // 초기 default 페이지 생성
-            pageService.createPageEntity(savedEntity.getId(), null);
+            PageEntity defaultRootPage = pageService.createPageEntity(savedEntity.getId());
 
-            log.info("워크스페이스 생성 완료: id={}, name={}", savedEntity.getId(), savedEntity.getName());
-            return savedEntity;
+            // 워크스페이스와 페이지 연관 설정
+            savedEntity.getRootPages().add(defaultRootPage);
+            WorkSpaceEntity updatedEntity = workspaceRepository.save(savedEntity);
+
+            // 워크스페이스 사용자 생성 (관리자)
+            String adminEmail = userInfoExtractor.getCurrentUserEmail();
+            if (adminEmail == null || adminEmail.trim().isEmpty()) {
+                log.warn("워크스페이스 생성 실패: 관리자 이메일이 비어있음");
+                throw new WorkSpaceOperationException("관리자 이메일은 필수입니다");
+            }
+
+            workSpaceUserService.createAdminUserEntity(adminEmail, updatedEntity.getId());
+
+
+            log.info("워크스페이스 생성 완료: id={}, name={}", updatedEntity.getId(), updatedEntity.getName());
+            return updatedEntity;
 
         } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) {
             // 의도된 비즈니스 예외는 그대로 전파
@@ -129,6 +147,23 @@ public class WorkSpaceService {
                 throw new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다: " + workspaceId);
             }
 
+            // 삭제 권한 검증
+            String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
+            if (currentUserEmail == null || currentUserEmail.trim().isEmpty()) {
+                throw new WorkSpaceOperationException("현재 사용자 이메일을 확인할 수 없습니다");
+            }
+
+            // 워크스페이스 사용자 조회 (관리자 권한 확인)
+            if (!workSpaceUserService.canUserManageWorkSpace(currentUserEmail, workspaceId)) {
+                throw new WorkSpaceOperationException("워크스페이스 삭제 권한이 없습니다: " + currentUserEmail);
+            }
+
+            // TODO : 워크스페이스에 속한 페이지 삭제
+            pageService.deletePageEntityByWorkspaceId(workspaceId);
+
+            // 워크스페이스 - 사용자 관계 삭제
+            workSpaceUserService.deleteWorkSpaceUserAllEntites(workspaceId);
+
             // 워크스페이스 삭제
             workspaceRepository.deleteById(workspaceId);
             
@@ -181,7 +216,7 @@ public class WorkSpaceService {
      * @return 조회된 WorkSpaceEntity
      * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 때
      */
-    private WorkSpaceEntity getWorkSpaceEntityOrThrow(UUID workspaceId) {
+    public WorkSpaceEntity getWorkSpaceEntityOrThrow(UUID workspaceId) {
         return workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> {
                     log.warn("워크스페이스 조회 실패: ID가 존재하지 않음, id={}", workspaceId);

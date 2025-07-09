@@ -4,6 +4,8 @@ import com.example.TacoHub.Converter.AccountConverter;
 import com.example.TacoHub.Dto.AccountDto;
 import com.example.TacoHub.Dto.EmailVerificationDto;
 import com.example.TacoHub.Entity.AccountEntity;
+import com.example.TacoHub.Exception.AccountNotFoundException;
+import com.example.TacoHub.Exception.AccountOperationException;
 import com.example.TacoHub.Exception.EmailAlreadyExistsException;
 import com.example.TacoHub.Exception.InvalidAuthCodeException;
 import com.example.TacoHub.Repository.AccountRepository;
@@ -46,29 +48,78 @@ public class AccountService {
      * @throws InvalidAuthCodeException 인증 코드가 유효하지 않은 경우 발생
      */
     public void signUp(AccountDto accountDto, String authCode, String purpose) {
-        // 이메일 ID 중복 재검사(클라이언트를 믿지마)
-        if (checkEmailId(accountDto.getEmailId())) {
-            throw new EmailAlreadyExistsException("이미 존재하는 이메일입니다.");
+
+        try {
+            // 이메일 ID 중복 재검사(클라이언트를 믿지마)
+            if (checkEmailId(accountDto.getEmailId())) {
+                throw new EmailAlreadyExistsException("이미 존재하는 이메일입니다.");
+            }
+
+            //
+            String email = accountDto.getEmailId();
+            EmailVerificationDto emailVerificationDto = new EmailVerificationDto(email, authCode, purpose);
+
+            // 인증 코드 검증
+            if (!authCodeService.verifyAuthCode(emailVerificationDto)) {
+                throw new InvalidAuthCodeException("인증 코드가 유효하지 않습니다.");
+            }
+
+            accountDto.setRole(ROLE_USER); // 기본 역할 설정
+
+            // 비밀번호 암호화
+            String encodedPassword = passwordEncoder.encode(accountDto.getPassword());
+            accountDto.setPassword(encodedPassword);
+
+            AccountEntity accountEntity = AccountConverter.toEntity(accountDto);
+
+            // AccountEntity로 변환 후 저장
+            accountRepository.save(accountEntity);
+
+        } catch (EmailAlreadyExistsException | InvalidAuthCodeException e) {
+            // 예외 처리 로직
+            log.error("회원가입 실패: {}", e.getMessage());
+            throw e; // 예외를 다시 던져서 호출자에게 알림
+        } catch (Exception e) {
+            handleAndThrowAccountException("signUp", e);     
         }
-
-        //
-        String email = accountDto.getEmailId();
-        EmailVerificationDto emailVerificationDto = new EmailVerificationDto(email, authCode, purpose);
-
-        // 인증 코드 검증
-        if (!authCodeService.verifyAuthCode(emailVerificationDto)) {
-            throw new InvalidAuthCodeException("인증 코드가 유효하지 않습니다.");
-        }
-
-        accountDto.setRole(ROLE_USER); // 기본 역할 설정
-
-        // 비밀번호 암호화
-        String encodedPassword = passwordEncoder.encode(accountDto.getPassword());
-        accountDto.setPassword(encodedPassword);
-
-        AccountEntity accountEntity = AccountConverter.toEntity(accountDto);
-
-        // AccountEntity로 변환 후 저장
-        accountRepository.save(accountEntity);
+         
     }
+
+
+
+
+    /**
+     * AccountEntity를 emailId로 조회하고, 없으면 예외를 던지는 메서드
+     * @param emailId 조회할 사용자의 이메일 ID
+     * @return 조회된 AccountEntity
+     * @throws AccountNotFoundException 이메일이 존재하지 않을 때
+     */
+    public AccountEntity getAccountEntityOrThrow(String emailId) {
+        return accountRepository.findByEmailId(emailId)
+                .orElseThrow(() -> {
+                    log.warn("사용자 조회 실패: 이메일이 존재하지 않음, emailId={}", emailId);
+                    return new AccountNotFoundException("사용자가 존재하지 않습니다: " + emailId);
+                });
+    }
+
+
+
+
+    /**
+    * 공통 AccountService 예외 처리 메서드
+    * @param methodName 실패한 메서드명
+    * @param originalException 원본 예외
+    * @throws AccountOperationException 래핑된 예외
+    */
+    private void handleAndThrowAccountException(String methodName, Exception originalException) {
+        String errorMessage = originalException.getMessage();
+        String exceptionType = originalException.getClass().getSimpleName();
+        log.error("{} 실패: type={}, message={}", methodName, exceptionType, errorMessage
+        , originalException);
+        throw new AccountOperationException(
+            String.format("%s 실패 [%s]: %s", methodName, exceptionType, errorMessage),
+            originalException
+        );  
+    }
+
 }

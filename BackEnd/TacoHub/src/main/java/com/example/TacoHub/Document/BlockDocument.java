@@ -48,7 +48,7 @@ public class BlockDocument {
     private UUID parentId; // 부모 블록 ID (중첩 블록의 경우, null이면 최상위 블록)
 
     @Field("order_index")
-    private Integer orderIndex; // 같은 부모 아래에서의 순서 (0부터 시작)
+    private Float orderIndex; // 같은 부모 아래에서의 순서 (0부터 시작)
 
     @Field("children_ids")
     private List<UUID> childrenIds; // 자식 블록들의 ID 목록 (성능을 위한 비정규화)

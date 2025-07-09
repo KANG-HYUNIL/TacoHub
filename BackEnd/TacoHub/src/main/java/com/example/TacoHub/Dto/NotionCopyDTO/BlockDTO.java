@@ -32,7 +32,7 @@ public class BlockDTO {
     
     private UUID parentId; // 부모 블록 ID (중첩 블록의 경우, null이면 최상위 블록)
     
-    private Integer orderIndex; // 같은 부모 아래에서의 순서 (0부터 시작)
+    private Float orderIndex; // 같은 부모 아래에서의 순서 (0부터 시작)
     
     private List<UUID> childrenIds; // 자식 블록들의 ID 목록
     
@@ -55,7 +55,7 @@ public class BlockDTO {
      * @param orderIndex 순서
      * @return 텍스트 블록 DTO
      */
-    public static BlockDTO createTextBlock(UUID pageId, String content, Integer orderIndex) {
+    public static BlockDTO createTextBlock(UUID pageId, String content, Float orderIndex) {
         return BlockDTO.builder()
                 .pageId(pageId)
                 .blockType("paragraph")
@@ -73,7 +73,7 @@ public class BlockDTO {
      * @param orderIndex 순서
      * @return 헤더 블록 DTO
      */
-    public static BlockDTO createHeadingBlock(UUID pageId, String content, int level, Integer orderIndex) {
+    public static BlockDTO createHeadingBlock(UUID pageId, String content, int level, Float orderIndex) {
         String blockType = "heading_" + level;
         return BlockDTO.builder()
                 .pageId(pageId)
@@ -92,7 +92,7 @@ public class BlockDTO {
      * @param orderIndex 순서
      * @return 리스트 블록 DTO
      */
-    public static BlockDTO createListBlock(UUID pageId, String content, boolean isNumbered, Integer orderIndex) {
+    public static BlockDTO createListBlock(UUID pageId, String content, boolean isNumbered, Float orderIndex) {
         String blockType = isNumbered ? "numbered_list" : "bulleted_list";
         return BlockDTO.builder()
                 .pageId(pageId)
@@ -111,7 +111,7 @@ public class BlockDTO {
      * @param orderIndex 순서
      * @return 이미지 블록 DTO
      */
-    public static BlockDTO createImageBlock(UUID pageId, String imageUrl, String caption, Integer orderIndex) {
+    public static BlockDTO createImageBlock(UUID pageId, String imageUrl, String caption, Float orderIndex) {
         Map<String, Object> metadata = Map.of(
                 "url", imageUrl,
                 "caption", caption != null ? caption : ""

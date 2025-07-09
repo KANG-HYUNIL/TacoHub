@@ -18,6 +18,7 @@ public class WorkSpaceConverter {
                 .updatedAt(workSpaceEntity.getUpdatedAt())
                 .build();
 
+        // TODO : 전부 DTO로 들기? 
         if (workSpaceEntity.getRootPages() != null)
         {
             dto.setRootPageDTOS(PageConverter.toDTOList(workSpaceEntity.getRootPages()));

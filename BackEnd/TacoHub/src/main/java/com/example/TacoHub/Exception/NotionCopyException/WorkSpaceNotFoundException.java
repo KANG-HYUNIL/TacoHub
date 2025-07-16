@@ -1,6 +1,12 @@
 package com.example.TacoHub.Exception.NotionCopyException;
 
-public class WorkSpaceNotFoundException extends RuntimeException{
+import com.example.TacoHub.Exception.BusinessException;
+
+/**
+ * 워크스페이스 조회 실패 비즈니스 예외
+ * 존재하지 않는 워크스페이스 ID 조회 시 발생
+ */
+public class WorkSpaceNotFoundException extends BusinessException {
 
     public WorkSpaceNotFoundException(String message) {
         super(message);
@@ -8,9 +14,5 @@ public class WorkSpaceNotFoundException extends RuntimeException{
 
     public WorkSpaceNotFoundException(String message, Throwable cause) {
         super(message, cause);
-    }
-
-    public WorkSpaceNotFoundException(Throwable cause) {
-        super(cause);
     }
 }

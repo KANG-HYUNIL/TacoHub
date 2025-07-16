@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class RemoveUserRequest {
     
     @NotNull(message = "사용자 ID는 필수입니다")
-    private Long userId;
+    private String userId;
     
     private String reason; // 선택적 제거 사유
 }

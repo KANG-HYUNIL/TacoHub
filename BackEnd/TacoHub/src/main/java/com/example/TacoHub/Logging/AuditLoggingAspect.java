@@ -102,7 +102,7 @@ public class AuditLoggingAspect {
             }
             
         } catch (Exception e) {
-            // === 4단계: 예외 발생 시 처리 ===
+            // === 4단계: 예외 발생 시 처리 === TODO : 예외 처리 로직 개선 필요
             status = "ERROR";
             errorType = e.getClass().getSimpleName();
             errorMessage = e.getMessage();

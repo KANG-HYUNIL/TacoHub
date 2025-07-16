@@ -8,6 +8,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class AccountDto {
 
     private String emailId; // 이메일 ID

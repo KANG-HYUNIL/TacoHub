@@ -78,130 +78,121 @@
         </rollingPolicy>
     </appender>
 
+    <!-- S3 Error Log Appender (Test/Prod 환경에서만) -->
+    <springProfile name="test,prod">
+        <appender name="S3_ERROR_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/s3-error/error.log</file>
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
+            </filter>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- JSON 형태로 구조화된 에러 로그 -->
+                <includeContext>true</includeContext>
+                <includeMdc>true</includeMdc>
+                <customFields>{"service":"tacohub","log_type":"error"}</customFields>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/s3-error/error.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>180</maxHistory>
+                <totalSizeCap>10GB</totalSizeCap>
+            </rollingPolicy>
+
+        </appender>
+    </springProfile>
+
     <!-- CloudWatch Appender (Test/Prod 환경) -->
     
-    <!--
-    ================================================================
-    CloudWatch Appender 동작 원리 및 구조 설명
-    ================================================================
-    
-    1. 로그 레벨별 필터링 및 CloudWatch 전송 과정:
-       - Logback은 Logger에서 생성된 로그 이벤트를 Appender로 전달
-       - 각 Appender는 Filter를 통해 특정 조건의 로그만 처리
-       - ca.pjer.logback.AwsLogsAppender가 AWS CloudWatch Logs API 호출
-    
-    2. AOP 감사 로그 vs 일반 애플리케이션 로그 분리:
-       - AOP 감사 로그: AuditLoggingAspect → AuditLogService → File/S3 저장
-       - 일반 애플리케이션 로그: SLF4J → Logback → CloudWatch 전송
-       - 두 로그 경로는 완전히 독립적으로 동작
-    
-    3. AWS 연결 및 인증 과정:
-       - application.yml의 cloud.aws.credentials 또는 EC2 Instance Profile 사용
-       - AWS SDK가 자동으로 리전(ap-northeast-2) 설정 및 CloudWatch Logs 클라이언트 생성
-       - 배치 단위로 로그 이벤트를 CloudWatch로 전송 (PutLogEvents API)
-    
-    4. 환경 변수 주입 시 동작 흐름:
-       - 환경 변수 → application.yml 값 주입
-       - Spring Boot 시작 시 logback-spring.xml 로드
-       - AwsLogsAppender 초기화 시 AWS 클라이언트 생성 및 연결 테스트
-       - 런타임에 로그 이벤트 발생 시 실시간 CloudWatch 전송
-    ================================================================
-    -->
-    
-    <!-- Test 환경: ERROR/WARN만 CloudWatch 전송 -->
+    <!-- Test 환경: ERROR/WARN을 각각 별도 CloudWatch 로그 그룹으로 전송 -->
     <springProfile name="test">
-        <appender name="CLOUDWATCH_ERROR" class="ca.pjer.logback.AwsLogsAppender">
+        <!-- ERROR 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_ERROR_TEST" class="ca.pjer.logback.AwsLogsAppender">
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <!-- CloudWatch 로그 그룹명 (환경변수에서 주입) -->
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_TEST:-/aws/ec2/tacohub-test}</logGroupName>
-            <!-- 로그 스트림 UUID 접두사 (인스턴스별 구분을 위해) -->
-            <logStreamUuidPrefix>test-instance-</logStreamUuidPrefix>
-            <!-- AWS 리전 설정 (환경변수에서 주입) -->
+            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_ERROR_TEST:-/aws/ec2/tacohub-test-error}</logGroupName>
+            <logStreamUuidPrefix>test-error-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <!-- 배치 전송 시 최대 로그 이벤트 수 (환경변수에서 주입) -->
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_TEST:-100}</maxBatchLogEvents>
-            <!-- 배치 전송 최대 대기 시간 (환경변수에서 주입) -->
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_TEST:-10000}</maxFlushTimeMillis>
-            <!-- 로그 전송 블록 최대 시간 (환경변수에서 주입) -->
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_TEST:-2000}</maxBlockTimeMillis>
+            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_ERROR_TEST:-50}</maxBatchLogEvents>
+            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_ERROR_TEST:-5000}</maxFlushTimeMillis>
+            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_ERROR_TEST:-1000}</maxBlockTimeMillis>
             
-            <!-- 
-            ===================================================================
-            ThresholdFilter 동작 원리:
-            - WARN 레벨 이상(ERROR, WARN)의 로그만 CloudWatch로 전송
-            - INFO, DEBUG, TRACE 로그는 필터링되어 CloudWatch로 전송되지 않음
-            - 이를 통해 CloudWatch 비용 절약 및 중요한 로그만 모니터링 가능
-            ===================================================================
-            -->
-            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-                <level>WARN</level>
+            <!-- ERROR 레벨만 필터링 -->
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
             </filter>
+        </appender>
+        
+        <!-- INFO/WARN 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_INFO_TEST" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_INFO_TEST:-/aws/ec2/tacohub-test-info}</logGroupName>
+            <logStreamUuidPrefix>test-info-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_INFO_TEST:-200}</maxBatchLogEvents>
+            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_INFO_TEST:-15000}</maxFlushTimeMillis>
+            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_INFO_TEST:-2000}</maxBlockTimeMillis>
             
-            <!-- 
-            환경변수 설정 방법:
-            1. .env 파일에서 환경변수 정의
-            2. AWS_CLOUDWATCH_LOG_GROUP_TEST: 테스트 환경 로그 그룹명
-            3. AWS_CLOUDWATCH_BATCH_SIZE_TEST: 테스트 환경 배치 크기
-            4. AWS_CLOUDWATCH_FLUSH_TIME_TEST: 테스트 환경 플러시 시간
-            5. AWS_CLOUDWATCH_BLOCK_TIME_TEST: 테스트 환경 블록 시간
-            
-            배포 시 환경변수 설정 예시:
-            export AWS_CLOUDWATCH_LOG_GROUP_TEST=/aws/ec2/tacohub-staging
-            export AWS_CLOUDWATCH_BATCH_SIZE_TEST=150
-            -->
+            <!-- INFO, WARN 레벨만 필터링 (ERROR는 제외) -->
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>DENY</onMatch>
+                <onMismatch>NEUTRAL</onMismatch>
+            </filter>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>INFO</level>
+            </filter>
         </appender>
     </springProfile>
     
-    <!-- Prod 환경: 모든 레벨을 CloudWatch 전송 -->
+    <!-- Prod 환경: ERROR와 INFO/WARN을 각각 별도 CloudWatch 로그 그룹으로 전송 -->
     <springProfile name="prod">
-        <appender name="CLOUDWATCH_ALL" class="ca.pjer.logback.AwsLogsAppender">
+        <!-- ERROR 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_ERROR_PROD" class="ca.pjer.logback.AwsLogsAppender">
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <!-- 운영 환경 CloudWatch 로그 그룹명 (환경변수에서 주입) -->
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_PROD:-/aws/ec2/tacohub-prod}</logGroupName>
-            <!-- 운영 인스턴스 로그 스트림 접두사 -->
-            <logStreamUuidPrefix>instance-</logStreamUuidPrefix>
-            <!-- AWS 리전 설정 (환경변수에서 주입) -->
+            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_ERROR_PROD:-/aws/ec2/tacohub-prod-error}</logGroupName>
+            <logStreamUuidPrefix>prod-error-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <!-- 운영 환경: 더 큰 배치 크기로 효율성 증대 (환경변수에서 주입) -->
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_PROD:-500}</maxBatchLogEvents>
-            <!-- 운영 환경: 더 긴 대기 시간으로 배치 효율성 증대 (환경변수에서 주입) -->
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_PROD:-30000}</maxFlushTimeMillis>
-            <!-- 운영 환경: 더 긴 블록 시간 허용 (환경변수에서 주입) -->
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_PROD:-5000}</maxBlockTimeMillis>
+            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_ERROR_PROD:-100}</maxBatchLogEvents>
+            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_ERROR_PROD:-5000}</maxFlushTimeMillis>
+            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_ERROR_PROD:-1000}</maxBlockTimeMillis>
             
-            <!-- 
-            ===================================================================
-            운영 환경에서는 필터 없음 = 모든 레벨(DEBUG, INFO, WARN, ERROR) 전송
-            - 운영 환경에서는 모든 로그를 CloudWatch에 보내 완전한 모니터링 수행
-            - DEBUG 로그는 root logger에서 INFO로 설정되어 실제로는 전송되지 않음
-            - INFO, WARN, ERROR 로그가 실제로 CloudWatch로 전송됨
-            ===================================================================
-            -->
+            <!-- ERROR 레벨만 필터링 -->
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
+            </filter>
+        </appender>
+        
+        <!-- INFO/WARN 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_INFO_PROD" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_INFO_PROD:-/aws/ec2/tacohub-prod-info}</logGroupName>
+            <logStreamUuidPrefix>prod-info-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_INFO_PROD:-500}</maxBatchLogEvents>
+            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_INFO_PROD:-30000}</maxFlushTimeMillis>
+            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_INFO_PROD:-5000}</maxBlockTimeMillis>
             
-            <!-- 모든 레벨 허용 (필터 없음) -->
-            <!-- 
-            환경변수 기반 운영 환경 설정:
-            1. AWS_CLOUDWATCH_LOG_GROUP_PROD: 운영 환경 로그 그룹명
-            2. AWS_CLOUDWATCH_BATCH_SIZE_PROD: 운영 환경 배치 크기 (트래픽에 따라 조정)
-            3. AWS_CLOUDWATCH_FLUSH_TIME_PROD: 운영 환경 플러시 시간
-            4. AWS_CLOUDWATCH_BLOCK_TIME_PROD: 운영 환경 블록 시간
-            
-            배포 시 환경변수 설정 예시:
-            export AWS_CLOUDWATCH_LOG_GROUP_PROD=/aws/ec2/tacohub-production
-            export AWS_CLOUDWATCH_BATCH_SIZE_PROD=1000
-            export AWS_CLOUDWATCH_FLUSH_TIME_PROD=60000
-            
-            또는 Docker/Kubernetes에서:
-            - AWS_CLOUDWATCH_LOG_GROUP_PROD=/aws/eks/tacohub-prod
-            - AWS_CLOUDWATCH_BATCH_SIZE_PROD=800
-            
-            CloudWatch 로그 그룹 생성 명령어:
-            aws logs create-log-group --log-group-name $AWS_CLOUDWATCH_LOG_GROUP_PROD --region $AWS_REGION
-            -->
+            <!-- INFO, WARN 레벨만 필터링 (ERROR는 제외) -->
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>DENY</onMatch>
+                <onMismatch>NEUTRAL</onMismatch>
+            </filter>
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>INFO</level>
+            </filter>
         </appender>
     </springProfile>
 
@@ -225,14 +216,18 @@
     <logger name="AUDIT" level="INFO" additivity="false">
         <appender-ref ref="ASYNC_AUDIT"/>
         
-        <!-- Test 환경: ERROR만 CloudWatch -->
+        <!-- Test 환경: ERROR는 CloudWatch + S3, 나머지는 CloudWatch -->
         <springProfile name="test">
-            <appender-ref ref="CLOUDWATCH_ERROR"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
+            <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
+            <appender-ref ref="S3_ERROR_LOG"/>
         </springProfile>
         
-        <!-- Prod 환경: 모든 레벨을 CloudWatch -->
+        <!-- Prod 환경: ERROR는 CloudWatch + S3, 나머지는 CloudWatch -->
         <springProfile name="prod">
-            <appender-ref ref="CLOUDWATCH_ALL"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
+            <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
+            <appender-ref ref="S3_ERROR_LOG"/>
         </springProfile>
     </logger>
 
@@ -258,18 +253,22 @@
             <appender-ref ref="ASYNC_FILE"/>
         </springProfile>
         
-        <!-- Test 환경: File + CloudWatch(ERROR만) -->
+        <!-- Test 환경: File + CloudWatch(레벨별 분리) + S3(ERROR) -->
         <springProfile name="test">
             <appender-ref ref="ASYNC_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
-            <appender-ref ref="CLOUDWATCH_ERROR"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
+            <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
+            <appender-ref ref="S3_ERROR_LOG"/>
         </springProfile>
         
-        <!-- Prod 환경: File + CloudWatch(모든레벨) -->
+        <!-- Prod 환경: File + CloudWatch(레벨별 분리) + S3(ERROR) -->
         <springProfile name="prod">
             <appender-ref ref="ASYNC_FILE"/>
             <appender-ref ref="ERROR_FILE"/>
-            <appender-ref ref="CLOUDWATCH_ALL"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
+            <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
+            <appender-ref ref="S3_ERROR_LOG"/>
         </springProfile>
     </root>
 

@@ -11,78 +11,132 @@ import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceConverter;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
 import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
+import com.example.TacoHub.Exception.BusinessException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
 import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
+import com.example.TacoHub.Service.BaseService;
 
 import jakarta.transaction.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class WorkSpaceService {
+public class WorkSpaceService extends BaseService {
 
     private final WorkSpaceRepository workspaceRepository;
     private final PageService pageService;
     private final WorkSpaceUserService workSpaceUserService;
     private final UserInfoExtractor userInfoExtractor;
 
+    // ===== 입력값 검증 메서드 =====
+    
+    /**
+     * 워크스페이스 ID 검증
+     * @param workspaceId 검증할 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateWorkspaceId(UUID workspaceId, String methodName) {
+        if (isNull(workspaceId)) {
+            log.warn("워크스페이스 ID 검증 실패: 메서드={}, 원인=워크스페이스 ID는 필수입니다", methodName);
+            throw new WorkSpaceOperationException("워크스페이스 ID는 필수입니다");
+        }
+    }
+
+    /**
+     * 워크스페이스 이름 검증
+     * @param workspaceName 검증할 워크스페이스 이름
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateWorkspaceName(String workspaceName, String methodName) {
+        if (isStringNullOrEmpty(workspaceName)) {
+            log.warn("워크스페이스 이름 검증 실패: 메서드={}, 원인=워크스페이스 이름은 필수입니다", methodName);
+            throw new WorkSpaceOperationException("워크스페이스 이름은 필수입니다");
+        }
+        
+        if (isStringTooLong(workspaceName, 100)) {
+            log.warn("워크스페이스 이름 검증 실패: 메서드={}, 원인=워크스페이스 이름은 100자를 초과할 수 없습니다, length={}", 
+                    methodName, workspaceName.length());
+            throw new WorkSpaceOperationException("워크스페이스 이름은 100자를 초과할 수 없습니다");
+        }
+    }
+
+    /**
+     * 현재 사용자 이메일 검증
+     * @param methodName 호출한 메서드명 (로깅용)
+     * @return 검증된 사용자 이메일
+     */
+    private String validateCurrentUserEmail(String methodName) {
+        String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
+        if (isStringNullOrEmpty(currentUserEmail)) {
+            log.warn("현재 사용자 이메일 검증 실패: 메서드={}, 원인=현재 사용자 이메일을 확인할 수 없습니다", methodName);
+            throw new WorkSpaceOperationException("현재 사용자 이메일을 확인할 수 없습니다");
+        }
+        return currentUserEmail;
+    }
+
+    /**
+     * 워크스페이스 관리 권한 검증
+     * @param userEmail 사용자 이메일
+     * @param workspaceId 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateWorkspaceManagePermission(String userEmail, UUID workspaceId, String methodName) {
+        if (!workSpaceUserService.canUserManageWorkSpace(userEmail, workspaceId)) {
+            log.warn("워크스페이스 관리 권한 검증 실패: 메서드={}, 원인=워크스페이스 관리 권한이 없습니다, userEmail={}, workspaceId={}", 
+                    methodName, userEmail, workspaceId);
+            throw new WorkSpaceOperationException("워크스페이스 관리 권한이 없습니다");
+        }
+    }
+
     /**
      * 새로운 워크스페이스를 생성합니다
      * @param newWorkspaceName 생성할 워크스페이스의 이름
-     * @return 생성된 워크스페이스의 DTO
+     * @return 생성된 워크스페이스의 Entity
      */
     @Transactional
     public WorkSpaceEntity createWorkspaceEntity(String newWorkspaceName) {
+        String methodName = "createWorkspaceEntity";
+        log.info("[{}] 워크스페이스 생성 시작: name={}", methodName, newWorkspaceName);
+        
         try {
-            log.info("워크스페이스 생성 시작: name={}", newWorkspaceName);
-            
-            // 입력값 검증
-            if (newWorkspaceName == null || newWorkspaceName.trim().isEmpty()) {
-                log.warn("워크스페이스 생성 실패: 이름이 비어있음");
-                throw new WorkSpaceOperationException("워크스페이스 이름은 필수입니다");
-            }
-            if (newWorkspaceName.length() > 100) {
-                log.warn("워크스페이스 생성 실패: 이름이 너무 긺, length={}", newWorkspaceName.length());
-                throw new WorkSpaceOperationException("워크스페이스 이름은 100자를 초과할 수 없습니다");
-            }
+            // 1. 입력값 검증
+            validateWorkspaceName(newWorkspaceName, methodName);
+            String currentUserEmail = validateCurrentUserEmail(methodName);
 
-            // 기초 entity 생성
+            // 2. 기초 entity 생성
             WorkSpaceEntity newWorkSpace = WorkSpaceEntity.builder()
                 .name(newWorkspaceName.trim())
                 .build();
 
             WorkSpaceEntity savedEntity = workspaceRepository.save(newWorkSpace);
 
-            // 초기 default 페이지 생성
+            // 3. 초기 default 페이지 생성
             PageEntity defaultRootPage = pageService.createPageEntity(savedEntity.getId());
 
-            // 워크스페이스와 페이지 연관 설정
+            // 4. 워크스페이스와 페이지 연관 설정
             savedEntity.getRootPages().add(defaultRootPage);
             WorkSpaceEntity updatedEntity = workspaceRepository.save(savedEntity);
 
-            // 워크스페이스 사용자 생성 (관리자)
-            String adminEmail = userInfoExtractor.getCurrentUserEmail();
-            if (adminEmail == null || adminEmail.trim().isEmpty()) {
-                log.warn("워크스페이스 생성 실패: 관리자 이메일이 비어있음");
-                throw new WorkSpaceOperationException("관리자 이메일은 필수입니다");
-            }
+            // 5. 워크스페이스 사용자 생성 (관리자)
+            workSpaceUserService.createAdminUserEntity(currentUserEmail, updatedEntity.getId());
 
-            workSpaceUserService.createAdminUserEntity(adminEmail, updatedEntity.getId());
-
-
-            log.info("워크스페이스 생성 완료: id={}, name={}", updatedEntity.getId(), updatedEntity.getName());
+            log.info("[{}] 워크스페이스 생성 완료: id={}, name={}", methodName, updatedEntity.getId(), updatedEntity.getName());
             return updatedEntity;
 
-        } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
-            log.warn("워크스페이스 생성 비즈니스 오류: {}", e.getMessage());
+        } catch (WorkSpaceOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            // 예상치 못한 예외는 래핑해서 전파
-            log.error("워크스페이스 생성 시스템 오류: {}", e.getMessage(), e);
-            handleAndThrowWorkSpaceException("createWorkspace", e);
+            handleAndThrowWorkSpaceException(methodName, e);       
             return null; // 실제로는 도달하지 않음
         }
     }
@@ -94,37 +148,37 @@ public class WorkSpaceService {
      */
     @Transactional
     public void editWorkspaceName(String newWorkspaceName, UUID workspaceId) {
+        String methodName = "editWorkspaceName";
+        log.info("[{}] 워크스페이스 이름 변경 시작: id={}, newName={}", methodName, workspaceId, newWorkspaceName);
+        
         try {
-            log.info("워크스페이스 이름 변경 시작: id={}, newName={}", workspaceId, newWorkspaceName);
-            
-            // 입력값 검증
-            if (workspaceId == null) {
-                throw new WorkSpaceOperationException("워크스페이스 ID는 필수입니다");
-            }
-            if (newWorkspaceName == null || newWorkspaceName.trim().isEmpty()) {
-                throw new WorkSpaceOperationException("워크스페이스 이름은 필수입니다");
-            }
-            if (newWorkspaceName.length() > 100) {
-                throw new WorkSpaceOperationException("워크스페이스 이름은 100자를 초과할 수 없습니다");
-            }
+            // 1. 입력값 검증
+            validateWorkspaceId(workspaceId, methodName);
+            validateWorkspaceName(newWorkspaceName, methodName);
 
-            // 워크스페이스 조회 (존재하지 않으면 예외 발생)
+            // 2. 워크스페이스 조회 (존재하지 않으면 예외 발생)
             WorkSpaceEntity workspace = getWorkSpaceEntityOrThrow(workspaceId);
 
-            // workspace 이름 변경
+            // 3. 워크스페이스 이름 변경
             workspace.setName(newWorkspaceName.trim());
 
-            // 변경된 워크스페이스 저장
+            // 4. 변경된 워크스페이스 저장
             workspaceRepository.save(workspace);
             
-            log.info("워크스페이스 이름 변경 완료: id={}, newName={}", workspaceId, newWorkspaceName);
+            log.info("[{}] 워크스페이스 이름 변경 완료: id={}, newName={}", methodName, workspaceId, newWorkspaceName);
 
-        } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
+        } catch (WorkSpaceOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            // 예상치 못한 예외는 래핑해서 전파
-            handleAndThrowWorkSpaceException("editWorkspaceName", e);
+            handleAndThrowWorkSpaceException(methodName, e);       
         }
     }
 
@@ -134,47 +188,45 @@ public class WorkSpaceService {
      */
     @Transactional
     public void deleteWorkspace(UUID workspaceId) {
+        String methodName = "deleteWorkspace";
+        log.info("[{}] 워크스페이스 삭제 시작: id={}", methodName, workspaceId);
+        
         try {
-            log.info("워크스페이스 삭제 시작: id={}", workspaceId);
-            
-            // 입력값 검증
-            if (workspaceId == null) {
-                throw new WorkSpaceOperationException("워크스페이스 ID는 필수입니다");
-            }
+            // 1. 입력값 검증
+            validateWorkspaceId(workspaceId, methodName);
 
-            // 워크스페이스 존재 확인 (존재하지 않으면 예외 발생)
+            // 2. 워크스페이스 존재 확인
             if (!workspaceRepository.existsById(workspaceId)) {
+                log.warn("워크스페이스 존재 확인 실패: 메서드={}, 원인=워크스페이스가 존재하지 않습니다, workspaceId={}", 
+                        methodName, workspaceId);
                 throw new WorkSpaceNotFoundException("워크스페이스가 존재하지 않습니다: " + workspaceId);
             }
 
-            // 삭제 권한 검증
-            String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
-            if (currentUserEmail == null || currentUserEmail.trim().isEmpty()) {
-                throw new WorkSpaceOperationException("현재 사용자 이메일을 확인할 수 없습니다");
-            }
+            // 3. 삭제 권한 검증
+            String currentUserEmail = validateCurrentUserEmail(methodName);
+            validateWorkspaceManagePermission(currentUserEmail, workspaceId, methodName);
 
-            // 워크스페이스 사용자 조회 (관리자 권한 확인)
-            if (!workSpaceUserService.canUserManageWorkSpace(currentUserEmail, workspaceId)) {
-                throw new WorkSpaceOperationException("워크스페이스 삭제 권한이 없습니다: " + currentUserEmail);
-            }
-
-            // TODO : 워크스페이스에 속한 페이지 삭제
+            // 4. 관련 데이터 삭제
             pageService.deletePageEntityByWorkspaceId(workspaceId);
-
-            // 워크스페이스 - 사용자 관계 삭제
             workSpaceUserService.deleteWorkSpaceUserAllEntites(workspaceId);
 
-            // 워크스페이스 삭제
+            // 5. 워크스페이스 삭제
             workspaceRepository.deleteById(workspaceId);
             
-            log.info("워크스페이스 삭제 완료: id={}", workspaceId);
+            log.info("[{}] 워크스페이스 삭제 완료: id={}", methodName, workspaceId);
 
-        } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
+        } catch (WorkSpaceOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            // 예상치 못한 예외는 래핑해서 전파
-            handleAndThrowWorkSpaceException("deleteWorkspace", e);
+            handleAndThrowWorkSpaceException(methodName, e);       
         }
     }
 
@@ -184,13 +236,14 @@ public class WorkSpaceService {
      * @return 조회된 워크스페이스의 DTO
      */
     public WorkSpaceDTO getWorkspaceDto(UUID workspaceId) {
+        String methodName = "getWorkspaceDto";
+
         try {
             log.info("워크스페이스 조회 시작: id={}", workspaceId);
             
-            // 입력값 검증
-            if (workspaceId == null) {
-                throw new WorkSpaceOperationException("워크스페이스 ID는 필수입니다");
-            }
+            // 1. 입력값 검증
+            validateWorkspaceId(workspaceId, methodName);
+            
 
             // 워크스페이스 조회 (존재하지 않으면 예외 발생)
             WorkSpaceEntity workspace = getWorkSpaceEntityOrThrow(workspaceId);
@@ -200,10 +253,19 @@ public class WorkSpaceService {
             log.info("워크스페이스 조회 완료: id={}", workspaceId);
             return dto;
 
-        } catch (WorkSpaceNotFoundException | WorkSpaceOperationException e) {
-            // 의도된 비즈니스 예외는 그대로 전파
+        } catch (WorkSpaceNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
             throw e;
-        } catch (Exception e) {
+        } catch(WorkSpaceOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e)
+        {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;        
+        }
+        catch (Exception e) {
             // 예상치 못한 예외는 래핑해서 전파
             handleAndThrowWorkSpaceException("getWorkspace", e);
             return null; // 실제로는 도달하지 않음
@@ -226,20 +288,22 @@ public class WorkSpaceService {
 
     /**
      * 공통 WorkSpace 예외 처리 메서드
+     * 예외 타입에 따라 자동으로 warn/error 로깅을 결정
+     * 
      * @param methodName 실패한 메서드명
      * @param originalException 원본 예외
      * @throws WorkSpaceOperationException 래핑된 예외
      */
     private void handleAndThrowWorkSpaceException(String methodName, Exception originalException) {
-        String errorMessage = originalException.getMessage();
-        String exceptionType = originalException.getClass().getSimpleName();
-        
-        log.error("{} 실패: type={}, message={}", methodName, exceptionType, errorMessage, originalException);
-        
-        throw new WorkSpaceOperationException(
-            String.format("%s 실패 [%s]: %s", methodName, exceptionType, errorMessage),
+        WorkSpaceOperationException customException = new WorkSpaceOperationException(
+            String.format("%s 실패 [%s]: %s", methodName, 
+                        originalException.getClass().getSimpleName(), 
+                        originalException.getMessage()),
             originalException
         );
+        
+        // BaseService의 메서드를 사용하여 예외 타입에 따라 warn/error 로깅
+        handleAndThrow(methodName, originalException, customException);
     }
 
 

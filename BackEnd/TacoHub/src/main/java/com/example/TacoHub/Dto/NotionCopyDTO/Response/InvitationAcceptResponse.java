@@ -13,6 +13,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class InvitationAcceptResponse {
     
+    private String workspaceId; 
+    private String invitedBy;
     private String invitationToken;
     private String userEmail;
     private String role;

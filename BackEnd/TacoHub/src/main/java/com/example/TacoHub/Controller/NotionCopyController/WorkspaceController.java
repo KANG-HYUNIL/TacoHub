@@ -142,8 +142,8 @@ public class WorkspaceController {
             @Valid @RequestBody RemoveUserRequest request) {
         log.info("사용자 제거 요청: workspaceId={}, userId={}", workspaceId, request.getUserId());
 
-        // TODO: 사용자 제거 로직 구현 필요
         // WorkSpaceUserService의 deleteWorkSpaceUserEntites 메서드 사용
+        workSpaceUserService.deleteWorkSpaceUserEntites(workspaceId, request.getUserId());
         
         log.info("사용자 제거 완료: workspaceId={}, userId={}", workspaceId, request.getUserId());
         return ResponseEntity.ok(ApiResponse.success(

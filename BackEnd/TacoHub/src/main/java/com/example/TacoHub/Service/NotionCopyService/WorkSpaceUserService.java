@@ -13,20 +13,20 @@ import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceUserEntity;
 import com.example.TacoHub.Enum.NotionCopyEnum.MembershipStatus;
 import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
-import com.example.TacoHub.Exception.AccountNotFoundException;
-import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
+import com.example.TacoHub.Exception.BusinessException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceUserNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceUserOperationException;
 import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceUserRepository;
 import com.example.TacoHub.Service.AccountService;
+import com.example.TacoHub.Service.BaseService;
 
 import jakarta.transaction.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class WorkSpaceUserService {
+public class WorkSpaceUserService extends BaseService {
 
     // User-Workspace 관계 담은 WorkSpaceUserRepository 종속성성
     private final WorkSpaceUserRepository workSpaceUserRepository;
@@ -35,6 +35,81 @@ public class WorkSpaceUserService {
     private final AccountService accountService;
     private final UserInfoExtractor userInfoExtractor;
 
+    // ===== 입력값 검증 메서드 =====
+    
+    /**
+     * 사용자 이메일 ID 검증
+     * @param userEmailId 검증할 사용자 이메일 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateUserEmailId(String userEmailId, String methodName) {
+        if (isStringNullOrEmpty(userEmailId)) {
+            log.warn("사용자 이메일 ID 검증 실패: 메서드={}, 원인=사용자 이메일 ID는 필수입니다", methodName);
+            throw new WorkSpaceUserOperationException("사용자 이메일 ID는 필수입니다");
+        }
+    }
+
+    /**
+     * 워크스페이스 ID 검증
+     * @param workspaceId 검증할 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateWorkspaceId(UUID workspaceId, String methodName) {
+        if (isNull(workspaceId)) {
+            log.warn("워크스페이스 ID 검증 실패: 메서드={}, 원인=워크스페이스 ID는 필수입니다", methodName);
+            throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
+        }
+    }
+
+    /**
+     * 사용자-워크스페이스 관계 중복 검증
+     * @param userEmailId 사용자 이메일 ID
+     * @param workspaceId 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateNotExistingRelation(String userEmailId, UUID workspaceId, String methodName) {
+        Optional<WorkSpaceUserEntity> existing = getWorkSpaceUserEntity(userEmailId, workspaceId);
+        if (existing.isPresent()) {
+            String message = String.format("이미 존재하는 사용자-워크스페이스 관계입니다: userEmailId=%s, workspaceId=%s", 
+                                        userEmailId, workspaceId);
+            log.warn("사용자-워크스페이스 관계 중복 검증 실패: 메서드={}, 원인={}", methodName, message);
+            throw new WorkSpaceUserOperationException(message);
+        }
+    }
+
+    /**
+     * 사용자-워크스페이스 관계 존재 검증
+     * @param userEmailId 사용자 이메일 ID
+     * @param workspaceId 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     * @return 존재하는 WorkSpaceUserEntity
+     */
+    private WorkSpaceUserEntity validateExistingRelation(String userEmailId, UUID workspaceId, String methodName) {
+        Optional<WorkSpaceUserEntity> existing = getWorkSpaceUserEntity(userEmailId, workspaceId);
+        if (existing.isEmpty()) {
+            String message = String.format("사용자와 워크스페이스의 관계가 존재하지 않습니다: userEmailId=%s, workspaceId=%s", 
+                                        userEmailId, workspaceId);
+            log.warn("사용자-워크스페이스 관계 존재 검증 실패: 메서드={}, 원인={}", methodName, message);
+            throw new WorkSpaceUserNotFoundException(message);
+        }
+        return existing.get();
+    }
+
+    /**
+     * 사용자 권한 검증
+     * @param currentUserEmail 현재 사용자 이메일
+     * @param workspaceId 워크스페이스 ID
+     * @param methodName 호출한 메서드명 (로깅용)
+     */
+    private void validateUserPermission(String currentUserEmail, UUID workspaceId, String methodName) {
+        if (!canUserInviteAndDeleteUsers(currentUserEmail, workspaceId)) {
+            String message = String.format("사용자 초대 및 삭제 권한이 없습니다: userEmailId=%s, workspaceId=%s", 
+                                        currentUserEmail, workspaceId);
+            log.warn("사용자 권한 검증 실패: 메서드={}, 원인={}", methodName, message);
+            throw new WorkSpaceUserOperationException(message);
+        }
+    }
+
     /**
      * 사용자-워크스페이스 관계 조회
      * @param userEmailId 사용자 이메일 ID
@@ -42,6 +117,8 @@ public class WorkSpaceUserService {
      * @return WorkSpaceUserEntity (Optional)
      */
     private Optional<WorkSpaceUserEntity> getWorkSpaceUserEntity(String userEmailId, UUID workspaceId) {
+        
+        String methodName = "getWorkSpaceUserEntity";
         try {
             // 입력값 검증
             if (userEmailId == null || userEmailId.trim().isEmpty()) {
@@ -56,163 +133,185 @@ public class WorkSpaceUserService {
             return workSpaceUserRepository.findByUser_EmailIdAndWorkspace_Id(userEmailId.trim(), workspaceId);
             
         } catch (Exception e) {
-            log.error("WorkSpaceUserEntity 조회 실패: userEmailId={}, workspaceId={}, error={}", 
-                    userEmailId, workspaceId, e.getMessage());
-            return Optional.empty();
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
+            
         }
     }
 
 
     /**
-     * Role이 Admin, Status는 Actie인 WorkSpaceUserEntity를 생성하는 Method
-     * @param userEmailId
-     * @param workspaceId
+     * Role이 Admin, Status는 Active인 WorkSpaceUserEntity를 생성하는 Method
+     * @param userEmailId 사용자 이메일 ID
+     * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
      */
-    public WorkSpaceUserEntity createAdminUserEntity (
-        String userEmailId,
-        UUID workspaceId
-    )
-    {
+    public WorkSpaceUserEntity createAdminUserEntity(String userEmailId, UUID workspaceId) {
+        String methodName = "createAdminUserEntity";
+        log.info("[{}] Admin 사용자 생성 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
+        
         try {
-            //입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty()) {
-                log.warn("사용자 이메일 ID 비어있음");
-                throw new WorkSpaceUserOperationException("사용자 이메일 ID는 필수입니다");
-                
-            }
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
+            validateNotExistingRelation(userEmailId, workspaceId, methodName);
 
-            if (workspaceId == null) {
-                log.warn("워크스페이스 ID가 null");
-                throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
-            }
-
-            // 사용자-워크스페이스 관계가 이미 존재하는지 확인
-            Optional<WorkSpaceUserEntity> existingEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            if (existingEntity.isPresent()) {
-                log.warn("이미 존재하는 사용자-워크스페이스 관계: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-                throw new WorkSpaceUserOperationException(
-                    "이미 존재하는 사용자-워크스페이스 관계입니다: userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            //WorkSpaceUserEntity가 이미 존재하는지 확인
-            // 워크스페이스와 사용자 엔티티 조회
+            // 2. 종속 엔티티 조회
             WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
             AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
 
-            // Admin으로 등록하는 WorkSpaceUserEntity 생성
+            // 3. Admin으로 등록하는 WorkSpaceUserEntity 생성
             WorkSpaceUserEntity newUser = WorkSpaceUserFactory.createOwnerEntity(workspace, user);
             
-            // 저장 후 반환
-            return workSpaceUserRepository.save(newUser);
+            // 4. 저장 후 반환
+            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(newUser);
+            log.info("[{}] Admin 사용자 생성 완료: userEmailId={}, workspaceId={}, userId={}", 
+                    methodName, userEmailId, workspaceId, savedUser.getId());
+            
+            return savedUser;
 
-
-        } 
-        catch(WorkSpaceUserOperationException e) {
-            handleAndThrowWorkSpaceUserException("createAdminUserEntity", e);
-            return null;
-        } catch(WorkSpaceNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("createAdminUserEntity", e);
-            return null;
-        } catch(AccountNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("createAdminUserEntity", e);
-            return null;
-        } catch(Exception e) {
-            handleAndThrowWorkSpaceUserException("createAdminUserEntity", e);
-            return null;
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
         }
+    }
+
+
+    /**
+     * 특정 WorkSpaceUserEntity를 삭제하는 method
+     * @param workspaceId 워크스페이스 ID
+     * @param userEmailId 사용자 이메일 ID
+     * @throws WorkSpaceUserNotFoundException 사용자-워크스페이스 관계가 존재하지 않을 때
+     */
+    @Transactional
+    public void deleteWorkSpaceUserEntites(UUID workspaceId, String userEmailId) {
+        String methodName = "deleteWorkSpaceUserEntites";
+        log.info("[{}] 사용자 삭제 시작: workspaceId={}, userEmailId={}", methodName, workspaceId, userEmailId);
         
+        try {
+            // 1. 입력값 검증
+            validateWorkspaceId(workspaceId, methodName);
+            validateUserEmailId(userEmailId, methodName);
+
+            // 2. 요청자 권한 검증
+            String currentUserEmail = userInfoExtractor.getCurrentUserId();
+            if (!currentUserEmail.equals(userEmailId)) {
+                validateUserPermission(currentUserEmail, workspaceId, methodName);
+            }
+
+            // 3. 삭제 대상 관계 검증 및 조회
+            WorkSpaceUserEntity entity = validateExistingRelation(userEmailId, workspaceId, methodName);
+            
+            // 4. 삭제 수행
+            workSpaceUserRepository.delete(entity);
+            
+            log.info("[{}] 사용자 삭제 완료: workspaceId={}, userEmailId={}, entityId={}", 
+                    methodName, workspaceId, userEmailId, entity.getId());
+
+        } catch (WorkSpaceUserNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
+        }
     }
 
     /**
      * 해당 workspaceId의 WorkSpaceUserEntity를 모두 삭제하는 method
-     * @param workspaceId
+     * @param workspaceId 워크스페이스 ID
      */
     @Transactional
-    public void deleteWorkSpaceUserAllEntites(
-        UUID workspaceId
-    ) 
-    {
+    public void deleteWorkSpaceUserAllEntites(UUID workspaceId) {
+        String methodName = "deleteWorkSpaceUserAllEntites";
+        log.info("[{}] 모든 사용자 삭제 시작: workspaceId={}", methodName, workspaceId);
+        
         try {
+            // 1. 입력값 검증
+            validateWorkspaceId(workspaceId, methodName);
 
-            // 입력값 검증
-            if (workspaceId == null) {
-                log.warn("워크스페이스 ID가 null");
-                throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
-            }
-
+            // 2. 모든 사용자 삭제
             workSpaceUserRepository.deleteByWorkspace_Id(workspaceId);
             
-        } 
-        catch (WorkSpaceUserNotFoundException e) 
-        {
-            handleAndThrowWorkSpaceUserException("deleteWorkSpaceUserEntites", e);
-        } 
-        catch (Exception e) 
-        {
-            handleAndThrowWorkSpaceUserException("deleteWorkSpaceUserEntites", e);
+            log.info("[{}] 모든 사용자 삭제 완료: workspaceId={}", methodName, workspaceId);
+            
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
         }
     }
     
 
     /**
-     * WorkSpaceUserEntity의 Role를  Update 하는 Method
+     * WorkSpaceUserEntity의 Role을 Update 하는 Method
      * @param userEmailId 사용자 이메일 ID
      * @param workspaceId 워크스페이스 ID
-     * @param newRole 새로운 멤버십 상태
+     * @param newRole 새로운 워크스페이스 역할
      */
     @Transactional
-    public void updateUserRole(
-        String userEmailId,
-        UUID workspaceId,
-        WorkSpaceRole newRole
-    )
-    {
+    public void updateUserRole(String userEmailId, UUID workspaceId, WorkSpaceRole newRole) {
+        String methodName = "updateUserRole";
+        log.info("[{}] 사용자 역할 업데이트 시작: userEmailId={}, workspaceId={}, newRole={}", 
+                methodName, userEmailId, workspaceId, newRole);
+        
         try {
-            Optional<WorkSpaceUserEntity> optionalEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
             
-            // 유효성 검증
-            if (optionalEntity.isEmpty()) 
-            {
-                log.warn("사용자 {}와 워크스페이스 {}의 관계가 존재하지 않습니다.", userEmailId, workspaceId);
-                throw new WorkSpaceUserNotFoundException("사용자와 워크스페이스의 관계가 존재하지 않습니다 : userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            // 권한 검증
+            // 2. 권한 검증
             String currentUserEmail = userInfoExtractor.getCurrentUserId();
-            if (!canUserInviteAndDeleteUsers(currentUserEmail, workspaceId))
-            {
-                log.warn("사용자 {}는 워크스페이스 {}에서 사용자 초대 및 삭제 권한이 없습니다.", currentUserEmail, workspaceId);
-                throw new WorkSpaceUserOperationException("사용자 초대 및 삭제 권한이 없습니다: userEmailId=" + currentUserEmail + ", workspaceId=" + workspaceId);
-            }
+            validateUserPermission(currentUserEmail, workspaceId, methodName);
 
-            WorkSpaceUserEntity entity = optionalEntity.get();
-            // 현재 Role과 동일한 경우 업데이트 하지 않음
-            if (entity.getWorkspaceRole() == newRole) 
-            {
-                log.info("사용자 {}의 워크스페이스 {} Role이 이미 {}입니다. 업데이트하지 않습니다.",
-                        userEmailId, workspaceId, newRole);
+            // 3. 대상 사용자 존재 확인
+            WorkSpaceUserEntity entity = validateExistingRelation(userEmailId, workspaceId, methodName);
+            
+            // 4. 현재 Role과 동일한 경우 업데이트 하지 않음
+            if (entity.getWorkspaceRole() == newRole) {
+                log.info("[{}] 사용자 역할이 이미 {}입니다. 업데이트하지 않습니다: userEmailId={}, workspaceId={}", 
+                        methodName, newRole, userEmailId, workspaceId);
                 return;
             }
-            // Role 업데이트
+            
+            // 5. Role 업데이트
             entity.setWorkspaceRole(newRole);
             workSpaceUserRepository.save(entity);
-            log.info("사용자 {}의 워크스페이스 {} Role을 {}로 업데이트했습니다.",
-                    userEmailId, workspaceId, newRole);
+            
+            log.info("[{}] 사용자 역할 업데이트 완료: userEmailId={}, workspaceId={}, oldRole={}, newRole={}", 
+                    methodName, userEmailId, workspaceId, entity.getWorkspaceRole(), newRole);
 
-        } 
-        catch (WorkSpaceUserNotFoundException e) 
-        {
-            log.warn("사용자 {}의 워크스페이스 {} Role 업데이트 실패: {}", userEmailId, workspaceId, e.getMessage());
-            throw e; // 비즈니스 예외는 그대로 전파
+        } catch (WorkSpaceUserNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
         }
-        catch (Exception e) 
-        {
-            handleAndThrowWorkSpaceUserException("updateUserRole", e);
-
-        }
-
     }
 
 
@@ -223,45 +322,46 @@ public class WorkSpaceUserService {
      * @param workspaceId 워크스페이스 ID
      * @param newMembershipStatus 새로운 멤버십 상태
      */
-    public void updateMembershipStatus(
-        String userEmailId,
-        UUID workspaceId,
-        MembershipStatus newMembershipStatus
-    )
-    {
+    @Transactional
+    public void updateMembershipStatus(String userEmailId, UUID workspaceId, MembershipStatus newMembershipStatus) {
+        String methodName = "updateMembershipStatus";
+        log.info("[{}] 멤버십 상태 업데이트 시작: userEmailId={}, workspaceId={}, newStatus={}", 
+                methodName, userEmailId, workspaceId, newMembershipStatus);
+        
         try {
-            Optional<WorkSpaceUserEntity> optionalEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
             
-            if (optionalEntity.isEmpty()) 
-            {
-                log.warn("사용자 {}와 워크스페이스 {}의 관계가 존재하지 않습니다.", userEmailId, workspaceId);
-                throw new WorkSpaceUserNotFoundException("사용자와 워크스페이스의 관계가 존재하지 않습니다 : userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            WorkSpaceUserEntity entity = optionalEntity.get();
-            // 현재 Role과 동일한 경우 업데이트 하지 않음
-            if (entity.getMembershipStatus() == newMembershipStatus) 
-            {
-                log.info("사용자 {}의 워크스페이스 {} Role이 이미 {}입니다. 업데이트하지 않습니다.",
-                        userEmailId, workspaceId, newMembershipStatus);
+            // 2. 대상 사용자 존재 확인
+            WorkSpaceUserEntity entity = validateExistingRelation(userEmailId, workspaceId, methodName);
+            
+            // 3. 현재 상태와 동일한 경우 업데이트 하지 않음
+            if (entity.getMembershipStatus() == newMembershipStatus) {
+                log.info("[{}] 멤버십 상태가 이미 {}입니다. 업데이트하지 않습니다: userEmailId={}, workspaceId={}", 
+                        methodName, newMembershipStatus, userEmailId, workspaceId);
                 return;
             }
-            // Role 업데이트
+            
+            // 4. 멤버십 상태 업데이트
             entity.setMembershipStatus(newMembershipStatus);
             workSpaceUserRepository.save(entity);
-            log.info("사용자 {}의 워크스페이스 {} Role을 {}로 업데이트했습니다.",
-                    userEmailId, workspaceId, newMembershipStatus);
-
-        } 
-        catch (WorkSpaceUserNotFoundException e) 
-        {
-            log.warn("사용자 {}의 워크스페이스 {} MembershipStatus 업데이트 실패: {}", userEmailId, workspaceId, e.getMessage());
-            throw e; // 비즈니스 예외는 그대로 전파
-        }
-        catch (Exception e) 
-        {
-            handleAndThrowWorkSpaceUserException("updateMembershipStatus", e);
             
+            log.info("[{}] 멤버십 상태 업데이트 완료: userEmailId={}, workspaceId={}, oldStatus={}, newStatus={}", 
+                    methodName, userEmailId, workspaceId, entity.getMembershipStatus(), newMembershipStatus);
+
+        } catch (WorkSpaceUserNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
         }
     }
 
@@ -342,53 +442,42 @@ public class WorkSpaceUserService {
      * Admin으로 초대하고 WorkSpaceUserEntity를 생성하는 Method
      * @param userEmailId 사용자 이메일 ID
      * @param workspaceId 워크스페이스 ID
+     * @return 생성된 WorkSpaceUserEntity
      */
-    public WorkSpaceUserEntity inviteAsAdmin(
-        String userEmailId,
-        UUID workspaceId
-    )
-    {
+    public WorkSpaceUserEntity inviteAsAdmin(String userEmailId, UUID workspaceId) {
+        String methodName = "inviteAsAdmin";
+        log.info("[{}] Admin 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
+        
         try {
-            // 입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty()) {
-                log.warn("사용자 이메일 ID 비어있음");
-                throw new WorkSpaceUserOperationException("사용자 이메일 ID는 필수입니다");
-            }
-            if (workspaceId == null) {
-                log.warn("워크스페이스 ID가 null");
-                throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
-            }
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
+            validateNotExistingRelation(userEmailId, workspaceId, methodName);
 
-            // 사용자-워크스페이스 관계가 이미 존재하는지 확인
-            Optional<WorkSpaceUserEntity> existingEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            if (existingEntity.isPresent()) {
-                log.warn("이미 존재하는 사용자-워크스페이스 관계: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-                throw new WorkSpaceUserOperationException(
-                    "이미 존재하는 사용자-워크스페이스 관계입니다: userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            // 워크스페이스와 사용자 엔티티 조회
+            // 2. 종속 엔티티 조회
             WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
             AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
 
-            // Admin으로 초대하는 WorkSpaceUserEntity 생성
+            // 3. Admin으로 초대하는 WorkSpaceUserEntity 생성
             WorkSpaceUserEntity invitedUser = WorkSpaceUserFactory.createdInvitedAdminEntity(workspace, user);
             
-            // 저장 후 반환
-            return workSpaceUserRepository.save(invitedUser);
+            // 4. 저장 후 반환
+            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(invitedUser);
+            log.info("[{}] Admin 초대 완료: userEmailId={}, workspaceId={}, userId={}", 
+                    methodName, userEmailId, workspaceId, savedUser.getId());
+            
+            return savedUser;
+
         } catch (WorkSpaceUserOperationException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsAdmin", e);
-            return null;
-        } catch (WorkSpaceNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsAdmin", e);
-            return null;
-        } catch (AccountNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsAdmin", e);
-            return null;
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
         } catch (Exception e) {
-            handleAndThrowWorkSpaceUserException("inviteAsAdmin", e);
-            return null;
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
         }
     }
 
@@ -397,53 +486,42 @@ public class WorkSpaceUserService {
      * Member로 초대하고 WorkSpaceUserEntity를 생성하는 Method
      * @param userEmailId 사용자 이메일 ID
      * @param workspaceId 워크스페이스 ID
+     * @return 생성된 WorkSpaceUserEntity
      */
-    public WorkSpaceUserEntity inviteAsMember(
-        String userEmailId,
-        UUID workspaceId
-    )
-    {
+    public WorkSpaceUserEntity inviteAsMember(String userEmailId, UUID workspaceId) {
+        String methodName = "inviteAsMember";
+        log.info("[{}] Member 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
+        
         try {
-            // 입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty()) {
-                log.warn("사용자 이메일 ID 비어있음");
-                throw new WorkSpaceUserOperationException("사용자 이메일 ID는 필수입니다");
-            }
-            if (workspaceId == null) {
-                log.warn("워크스페이스 ID가 null");
-                throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
-            }
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
+            validateNotExistingRelation(userEmailId, workspaceId, methodName);
 
-            // 사용자-워크스페이스 관계가 이미 존재하는지 확인
-            Optional<WorkSpaceUserEntity> existingEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            if (existingEntity.isPresent()) {
-                log.warn("이미 존재하는 사용자-워크스페이스 관계: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-                throw new WorkSpaceUserOperationException(
-                    "이미 존재하는 사용자-워크스페이스 관계입니다: userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            // 워크스페이스와 사용자 엔티티 조회
+            // 2. 종속 엔티티 조회
             WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
             AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
 
-            // Member로 초대하는 WorkSpaceUserEntity 생성
+            // 3. Member로 초대하는 WorkSpaceUserEntity 생성
             WorkSpaceUserEntity invitedUser = WorkSpaceUserFactory.createdInvitedMemberEntity(workspace, user);
             
-            // 저장 후 반환
-            return workSpaceUserRepository.save(invitedUser);
+            // 4. 저장 후 반환
+            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(invitedUser);
+            log.info("[{}] Member 초대 완료: userEmailId={}, workspaceId={}, userId={}", 
+                    methodName, userEmailId, workspaceId, savedUser.getId());
+            
+            return savedUser;
+
         } catch (WorkSpaceUserOperationException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsMember", e);
-            return null;
-        } catch (WorkSpaceNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsMember", e);
-            return null;
-        } catch (AccountNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsMember", e);
-            return null;
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
         } catch (Exception e) {
-            handleAndThrowWorkSpaceUserException("inviteAsMember", e);
-            return null;
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
         }
     }
 
@@ -451,53 +529,42 @@ public class WorkSpaceUserService {
      * Guest로 초대하고 WorkSpaceUserEntity를 생성하는 Method
      * @param userEmailId 사용자 이메일 ID
      * @param workspaceId 워크스페이스 ID
+     * @return 생성된 WorkSpaceUserEntity
      */
-    public WorkSpaceUserEntity inviteAsGuest(
-        String userEmailId,
-        UUID workspaceId
-    )
-    {
+    public WorkSpaceUserEntity inviteAsGuest(String userEmailId, UUID workspaceId) {
+        String methodName = "inviteAsGuest";
+        log.info("[{}] Guest 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
+        
         try {
-            // 입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty()) {
-                log.warn("사용자 이메일 ID 비어있음");
-                throw new WorkSpaceUserOperationException("사용자 이메일 ID는 필수입니다");
-            }
-            if (workspaceId == null) {
-                log.warn("워크스페이스 ID가 null");
-                throw new WorkSpaceUserOperationException("워크스페이스 ID는 필수입니다");
-            }
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
+            validateNotExistingRelation(userEmailId, workspaceId, methodName);
 
-            // 사용자-워크스페이스 관계가 이미 존재하는지 확인
-            Optional<WorkSpaceUserEntity> existingEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            if (existingEntity.isPresent()) {
-                log.warn("이미 존재하는 사용자-워크스페이스 관계: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-                throw new WorkSpaceUserOperationException(
-                    "이미 존재하는 사용자-워크스페이스 관계입니다: userEmailId=" + userEmailId + ", workspaceId=" + workspaceId);
-            }
-
-            // 워크스페이스와 사용자 엔티티 조회
+            // 2. 종속 엔티티 조회
             WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
             AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
 
-            // Guest로 초대하는 WorkSpaceUserEntity 생성
+            // 3. Guest로 초대하는 WorkSpaceUserEntity 생성
             WorkSpaceUserEntity invitedUser = WorkSpaceUserFactory.createdInvitedGuestEntity(workspace, user);
             
-            // 저장 후 반환
-            return workSpaceUserRepository.save(invitedUser);
+            // 4. 저장 후 반환
+            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(invitedUser);
+            log.info("[{}] Guest 초대 완료: userEmailId={}, workspaceId={}, userId={}", 
+                    methodName, userEmailId, workspaceId, savedUser.getId());
+            
+            return savedUser;
+
         } catch (WorkSpaceUserOperationException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsGuest", e);
-            return null;
-        } catch (WorkSpaceNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsGuest", e);
-            return null;
-        } catch (AccountNotFoundException e) {
-            handleAndThrowWorkSpaceUserException("inviteAsGuest", e);
-            return null;
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
         } catch (Exception e) {
-            handleAndThrowWorkSpaceUserException("inviteAsGuest", e);
-            return null;
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
         }
     }
 
@@ -509,49 +576,9 @@ public class WorkSpaceUserService {
      * @return 관리 권한 여부
      */
     public boolean canUserManageWorkSpace(String userEmailId, UUID workspaceId) {
-        try {
-            log.debug("워크스페이스 관리 권한 확인: userEmailId={}, workspaceId={}", userEmailId, workspaceId);
-            
-            // 입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty() || workspaceId == null) {
-                log.warn("잘못된 입력값으로 인한 권한 거부: userEmailId={}, workspaceId={}", userEmailId, workspaceId);
-                return false;
-            }
-
-            Optional<WorkSpaceUserEntity> result = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            
-            // 사용자-워크스페이스 관계가 존재하지 않음
-            if (result.isEmpty()) {
-                // 🔐 보안 이벤트: 권한 없는 사용자의 접근 시도
-                log.warn("권한 없는 워크스페이스 관리 시도 - 사용자 관계 없음: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-                return false;
-            }
-
-            boolean canManage = result.filter(entity -> entity.getMembershipStatus() == MembershipStatus.ACTIVE)
-                                    .map(entity -> entity.getWorkspaceRole().canManageWorkspace())
-                                    .orElse(false);
-            
-            // 🔐 보안 이벤트: 권한 부족으로 인한 거부
-            if (!canManage) {
-                log.warn("권한 부족으로 인한 워크스페이스 관리 거부: userEmailId={}, workspaceId={}, " +
-                        "membershipStatus={}, role={}", 
-                        userEmailId, workspaceId, 
-                        result.get().getMembershipStatus(),
-                        result.get().getWorkspaceRole());
-            } else {
-                // ✅ 비즈니스 이벤트: 정상적인 관리 권한 승인
-                log.info("워크스페이스 관리 권한 승인: userEmailId={}, workspaceId={}", 
-                        userEmailId, workspaceId);
-            }
-            
-            return canManage;
-            
-        } catch (Exception e) {
-            log.error("워크스페이스 관리 권한 확인 실패: userEmailId={}, workspaceId={}, error={}", 
-                    userEmailId, workspaceId, e.getMessage());
-            return false;
-        }
+        
+        return checkUserPermission(userEmailId, workspaceId, "manage workspace", 
+                entity -> entity.getWorkspaceRole().canManageWorkspace());
     }
 
     /**
@@ -612,23 +639,23 @@ public class WorkSpaceUserService {
      */
     private boolean checkUserPermission(String userEmailId, UUID workspaceId, String permissionName, 
                                     java.util.function.Function<WorkSpaceUserEntity, Boolean> permissionChecker) {
+        String methodName = "checkUserPermission";
+        
         try {
-            log.debug("{} 권한 확인: userEmailId={}, workspaceId={}", permissionName, userEmailId, workspaceId);
-            
+            log.debug("[{}] {} 권한 확인: userEmailId={}, workspaceId={}", 
+                    methodName, permissionName, userEmailId, workspaceId);
+        
             // 입력값 검증
-            if (userEmailId == null || userEmailId.trim().isEmpty() || workspaceId == null) {
-                log.warn("잘못된 입력값으로 인한 {} 권한 거부: userEmailId={}, workspaceId={}", 
-                        permissionName, userEmailId, workspaceId);
-                return false;
-            }
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
 
-            Optional<WorkSpaceUserEntity> result = getWorkSpaceUserEntity(userEmailId, workspaceId);
-            
+            // 사용자-워크스페이스 관계 조회
+            Optional<WorkSpaceUserEntity> result = getWorkSpaceUserEntity(userEmailId, workspaceId);        
             // 사용자-워크스페이스 관계가 존재하지 않음
             if (result.isEmpty()) {
                 // 🔐 보안 이벤트: 관계 없는 사용자의 접근 시도
-                log.warn("권한 없는 {} 시도 - 사용자 관계 없음: userEmailId={}, workspaceId={}", 
-                        permissionName, userEmailId, workspaceId);
+                log.warn("[{}] 권한 없는 {} 시도 - 사용자 관계 없음: userEmailId={}, workspaceId={}", 
+                        methodName, permissionName, userEmailId, workspaceId);
                 return false;
             }
 
@@ -639,39 +666,56 @@ public class WorkSpaceUserService {
             // 권한 결과에 따른 로깅
             if (!hasPermission) {
                 // 🔐 보안 이벤트: 권한 부족으로 인한 거부
-                log.warn("권한 부족으로 인한 {} 거부: userEmailId={}, workspaceId={}, " +
+                log.warn("[{}] 권한 부족으로 인한 {} 거부: userEmailId={}, workspaceId={}, " +
                         "membershipStatus={}, role={}", 
-                        permissionName, userEmailId, workspaceId,
+                        methodName, permissionName, userEmailId, workspaceId,
+                        result.get().getMembershipStatus(),
+                        result.get().getWorkspaceRole());
+            }
+            else {
+                log.info("[{}] {} 권한 확인 성공: userEmailId={}, workspaceId={}, " +
+                        "membershipStatus={}, role={}", 
+                        methodName, permissionName, userEmailId, workspaceId,
                         result.get().getMembershipStatus(),
                         result.get().getWorkspaceRole());
             }
             
             return hasPermission;
             
-        } catch (Exception e) {
-
-            handleAndThrowWorkSpaceUserException(permissionName, e);
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            return false;
+        } 
+        catch (BusinessException e)
+        {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            return false;
+        } 
+        catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
             return false; // 실제로는 도달하지 않음
         }
     }
 
 
-    
     /**
-    * 공통 AccountService 예외 처리 메서드
-    * @param methodName 실패한 메서드명
-    * @param originalException 원본 예외
-    * @throws WorkSpaceUserOperationException 래핑된 예외
-    */
-    private void handleAndThrowWorkSpaceUserException(String methodName, Exception originalException) {
-        String errorMessage = originalException.getMessage();
-        String exceptionType = originalException.getClass().getSimpleName();
-        log.error("{} 실패: type={}, message={}", methodName, exceptionType, errorMessage
-        , originalException);
-        throw new WorkSpaceUserOperationException(
-            String.format("%s 실패 [%s]: %s", methodName, exceptionType, errorMessage),
+     * WorkSpaceUser 공통 예외 처리 메서드
+     * 예외 타입에 따라 자동으로 warn/error logging 결정
+     * @param methodName 호출한 메서드명 (로깅용)
+     * @param originalException 원본 예외
+     * @throws WorkSpaceUserOperationException Wrapped 예외
+     */
+        private void handleAndThrowWorkSpaceUserException(String methodName, Exception originalException) {
+        WorkSpaceUserOperationException customException = new WorkSpaceUserOperationException(
+            String.format("%s 실패 [%s]: %s", methodName, 
+                         originalException.getClass().getSimpleName(), 
+                         originalException.getMessage()),
             originalException
-        );  
+        );
+        
+        // BaseService의 메서드를 사용하여 예외 타입에 따라 warn/error 로깅
+        handleAndThrow(methodName, originalException, customException);
     }
 
 }

@@ -51,37 +51,6 @@ public class BlockService extends BaseService {
         }
     }
 
-    /**
-     * BlockDTO 유효성 검증
-     * @param blockDto 검증할 블록 DTO
-     * @param paramName 매개변수명 (로그용)
-     */
-    private void validateBlockDto(BlockDTO blockDto, String paramName) {
-        
-        // TODO : Block 종류 설립
-        // if (isNull(blockDto)) {
-        //     throw new BlockOperationException(paramName + "은(는) 필수 입력 항목입니다. 블록 정보를 입력해주세요.");
-        // }
-        // validatePageId(blockDto.getPageId(), "페이지 ID");
-        
-        // if (isStringNullOrEmpty(blockDto.getBlockType())) {
-        //     throw new BlockOperationException("블록 타입은 필수 입력 항목입니다. 블록 타입을 지정해주세요.");
-        // }
-        
-        // // 허용된 블록 타입인지 검증
-        // String[] allowedTypes = {"paragraph", "heading_1", "heading_2", "heading_3", 
-        //                         "bulleted_list", "numbered_list", "image", "code", "quote"};
-        // boolean isValidType = false;
-        // for (String type : allowedTypes) {
-        //     if (type.equals(blockDto.getBlockType())) {
-        //         isValidType = true;
-        //         break;
-        //     }
-        // }
-        // if (!isValidType) {
-        //     throw new BlockOperationException("블록 타입이 유효하지 않습니다. 허용된 타입: " + String.join(", ", allowedTypes));
-        // }
-    }
 
     /**
      * 페이지 ID로 해당 페이지의 모든 블록을 삭제합니다

@@ -78,45 +78,44 @@
         </rollingPolicy>
     </appender>
 
-    <!-- S3 Error Log Appender (Test/Prod 환경에서만) -->
-    <springProfile name="test,prod">
-        <appender name="S3_ERROR_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_PATH}/s3-error/error.log</file>
-            <filter class="ch.qos.logback.classic.filter.LevelFilter">
-                <level>ERROR</level>
-                <onMatch>ACCEPT</onMatch>
-                <onMismatch>DENY</onMismatch>
-            </filter>
-            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-                <!-- JSON 형태로 구조화된 에러 로그 -->
-                <includeContext>true</includeContext>
-                <includeMdc>true</includeMdc>
-                <customFields>{"service":"tacohub","log_type":"error"}</customFields>
-            </encoder>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_PATH}/s3-error/error.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>180</maxHistory>
-                <totalSizeCap>10GB</totalSizeCap>
-            </rollingPolicy>
 
-        </appender>
-    </springProfile>
 
     <!-- CloudWatch Appender (Test/Prod 환경) -->
     
-    <!-- Test 환경: ERROR/WARN을 각각 별도 CloudWatch 로그 그룹으로 전송 -->
+    <!-- Test 환경: 각 로그 레벨별로 별도 CloudWatch 로그 그룹으로 전송 -->
     <springProfile name="test">
+        <!-- 감사 로그 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_AUDIT_TEST" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/log-group/audit -->
+            <logGroupName>${cloudwatch.log-group.audit:-/aws/tacohub/test/audit}</logGroupName>
+            <logStreamUuidPrefix>test-audit-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/batch-size/audit -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.audit:-200}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/flush-time/audit -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.audit:-10000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/block-time/audit -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.audit:-2000}</maxBlockTimeMillis>
+        </appender>
+        
         <!-- ERROR 전용 CloudWatch Appender -->
         <appender name="CLOUDWATCH_ERROR_TEST" class="ca.pjer.logback.AwsLogsAppender">
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_ERROR_TEST:-/aws/ec2/tacohub-test-error}</logGroupName>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/log-group/error -->
+            <logGroupName>${cloudwatch.log-group.error:-/aws/tacohub/test/error}</logGroupName>
             <logStreamUuidPrefix>test-error-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_ERROR_TEST:-50}</maxBatchLogEvents>
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_ERROR_TEST:-5000}</maxFlushTimeMillis>
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_ERROR_TEST:-1000}</maxBlockTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/batch-size/error -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.error:-50}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/flush-time/error -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.error:-5000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/block-time/error -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.error:-1000}</maxBlockTimeMillis>
             
             <!-- ERROR 레벨만 필터링 -->
             <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -131,12 +130,16 @@
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_INFO_TEST:-/aws/ec2/tacohub-test-info}</logGroupName>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/log-group/info -->
+            <logGroupName>${cloudwatch.log-group.info:-/aws/tacohub/test/info}</logGroupName>
             <logStreamUuidPrefix>test-info-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_INFO_TEST:-200}</maxBatchLogEvents>
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_INFO_TEST:-15000}</maxFlushTimeMillis>
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_INFO_TEST:-2000}</maxBlockTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/batch-size/info -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.info:-200}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/flush-time/info -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.info:-15000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/block-time/info -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.info:-2000}</maxBlockTimeMillis>
             
             <!-- INFO, WARN 레벨만 필터링 (ERROR는 제외) -->
             <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -148,21 +151,59 @@
                 <level>INFO</level>
             </filter>
         </appender>
+        
+        <!-- Application 전체 로그 CloudWatch Appender (백업용) -->
+        <appender name="CLOUDWATCH_APPLICATION_TEST" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/log-group/application -->
+            <logGroupName>${cloudwatch.log-group.application:-/aws/tacohub/test/application}</logGroupName>
+            <logStreamUuidPrefix>test-app-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/batch-size/application -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.application:-300}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/flush-time/application -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.application:-20000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/test/cloudwatch/block-time/application -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.application:-3000}</maxBlockTimeMillis>
+        </appender>
     </springProfile>
     
-    <!-- Prod 환경: ERROR와 INFO/WARN을 각각 별도 CloudWatch 로그 그룹으로 전송 -->
+    <!-- Prod 환경: 각 로그 레벨별로 별도 CloudWatch 로그 그룹으로 전송 -->
     <springProfile name="prod">
+        <!-- 감사 로그 전용 CloudWatch Appender -->
+        <appender name="CLOUDWATCH_AUDIT_PROD" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/log-group/audit -->
+            <logGroupName>${cloudwatch.log-group.audit:-/aws/tacohub/prod/audit}</logGroupName>
+            <logStreamUuidPrefix>prod-audit-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/batch-size/audit -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.audit:-500}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/flush-time/audit -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.audit:-15000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/block-time/audit -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.audit:-3000}</maxBlockTimeMillis>
+        </appender>
+        
         <!-- ERROR 전용 CloudWatch Appender -->
         <appender name="CLOUDWATCH_ERROR_PROD" class="ca.pjer.logback.AwsLogsAppender">
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_ERROR_PROD:-/aws/ec2/tacohub-prod-error}</logGroupName>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/log-group/error -->
+            <logGroupName>${cloudwatch.log-group.error:-/aws/tacohub/prod/error}</logGroupName>
             <logStreamUuidPrefix>prod-error-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_ERROR_PROD:-100}</maxBatchLogEvents>
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_ERROR_PROD:-5000}</maxFlushTimeMillis>
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_ERROR_PROD:-1000}</maxBlockTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/batch-size/error -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.error:-100}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/flush-time/error -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.error:-5000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/block-time/error -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.error:-1000}</maxBlockTimeMillis>
             
             <!-- ERROR 레벨만 필터링 -->
             <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -177,12 +218,16 @@
             <layout>
                 <pattern>${JSON_PATTERN}</pattern>
             </layout>
-            <logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_INFO_PROD:-/aws/ec2/tacohub-prod-info}</logGroupName>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/log-group/info -->
+            <logGroupName>${cloudwatch.log-group.info:-/aws/tacohub/prod/info}</logGroupName>
             <logStreamUuidPrefix>prod-info-</logStreamUuidPrefix>
             <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
-            <maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_INFO_PROD:-500}</maxBatchLogEvents>
-            <maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_INFO_PROD:-30000}</maxFlushTimeMillis>
-            <maxBlockTimeMillis>${AWS_CLOUDWATCH_BLOCK_TIME_INFO_PROD:-5000}</maxBlockTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/batch-size/info -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.info:-500}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/flush-time/info -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.info:-30000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/block-time/info -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.info:-5000}</maxBlockTimeMillis>
             
             <!-- INFO, WARN 레벨만 필터링 (ERROR는 제외) -->
             <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -193,6 +238,23 @@
             <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
                 <level>INFO</level>
             </filter>
+        </appender>
+        
+        <!-- Application 전체 로그 CloudWatch Appender (백업용) -->
+        <appender name="CLOUDWATCH_APPLICATION_PROD" class="ca.pjer.logback.AwsLogsAppender">
+            <layout>
+                <pattern>${JSON_PATTERN}</pattern>
+            </layout>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/log-group/application -->
+            <logGroupName>${cloudwatch.log-group.application:-/aws/tacohub/prod/application}</logGroupName>
+            <logStreamUuidPrefix>prod-app-</logStreamUuidPrefix>
+            <logRegion>${AWS_REGION:-ap-northeast-2}</logRegion>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/batch-size/application -->
+            <maxBatchLogEvents>${cloudwatch.batch-size.application:-500}</maxBatchLogEvents>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/flush-time/application -->
+            <maxFlushTimeMillis>${cloudwatch.flush-time.application:-30000}</maxFlushTimeMillis>
+            <!-- Parameter Store: /tacohub/prod/cloudwatch/block-time/application -->
+            <maxBlockTimeMillis>${cloudwatch.block-time.application:-5000}</maxBlockTimeMillis>
         </appender>
     </springProfile>
 
@@ -214,20 +276,17 @@
     
     <!-- 감사 로그 전용 Logger (환경별 분기) -->
     <logger name="AUDIT" level="INFO" additivity="false">
-        <appender-ref ref="ASYNC_AUDIT"/>
+        <appender-ref ref="ASYNC_AUDIT"/>  <!-- 기본 파일 저장 -->
         
-        <!-- Test 환경: ERROR는 CloudWatch + S3, 나머지는 CloudWatch -->
+        <!-- Test 환경: CloudWatch + S3 준비 -->
         <springProfile name="test">
-            <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
-            <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
-            <appender-ref ref="S3_ERROR_LOG"/>
+            <appender-ref ref="CLOUDWATCH_AUDIT_TEST"/>   <!-- 감사 로그 전용 CloudWatch -->
+
         </springProfile>
         
-        <!-- Prod 환경: ERROR는 CloudWatch + S3, 나머지는 CloudWatch -->
+        <!-- Prod 환경: CloudWatch + S3 준비 -->
         <springProfile name="prod">
-            <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
-            <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
-            <appender-ref ref="S3_ERROR_LOG"/>
+            <appender-ref ref="CLOUDWATCH_AUDIT_PROD"/>   <!-- 감사 로그 전용 CloudWatch -->
         </springProfile>
     </logger>
 
@@ -259,7 +318,8 @@
             <appender-ref ref="ERROR_FILE"/>
             <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
             <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
-            <appender-ref ref="S3_ERROR_LOG"/>
+            <appender-ref ref="CLOUDWATCH_APPLICATION_TEST"/>
+
         </springProfile>
         
         <!-- Prod 환경: File + CloudWatch(레벨별 분리) + S3(ERROR) -->
@@ -268,7 +328,8 @@
             <appender-ref ref="ERROR_FILE"/>
             <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
             <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
-            <appender-ref ref="S3_ERROR_LOG"/>
+            <appender-ref ref="CLOUDWATCH_APPLICATION_PROD"/>
+
         </springProfile>
     </root>
 

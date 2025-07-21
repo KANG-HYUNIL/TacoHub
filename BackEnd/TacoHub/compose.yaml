@@ -1,22 +1,128 @@
+version: '3.8'
+
 services:
-  mongodb:
-    image: 'mongo:latest'
-    environment:
-      - 'MONGO_INITDB_DATABASE=mydatabase'
-      - 'MONGO_INITDB_ROOT_PASSWORD=secret'
-      - 'MONGO_INITDB_ROOT_USERNAME=root'
-    ports:
-      - '27017'
+  # MySQL (RDS 대체)
   mysql:
-    image: 'mysql:latest'
+    image: 'mysql:8.0'
+    container_name: tacohub-mysql-local
     environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+      - 'MYSQL_ROOT_PASSWORD=tacobackend'
+      - 'MYSQL_DATABASE=tacohub_local'
+      - 'MYSQL_USER=admin'
+      - 'MYSQL_PASSWORD=tacobackend'
     ports:
-      - '3306'
+      - '3306:3306'  # 호스트:컨테이너 명시적 매핑
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # MongoDB (DocumentDB 대체)
+  mongodb:
+    image: 'mongo:6'
+    container_name: tacohub-mongo-local
+    environment:
+      - 'MONGO_INITDB_ROOT_USERNAME=admin'
+      - 'MONGO_INITDB_ROOT_PASSWORD=tacobackend'
+      - 'MONGO_INITDB_DATABASE=springBootDocuments'
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      timeout: 20s
+      retries: 10
+
+  # Redis (ElastiCache 대체)
   redis:
-    image: 'redis:latest'
+    image: 'redis:7-alpine'
+    container_name: tacohub-redis-local
     ports:
-      - '6379'
+      - '6379:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 20s
+      retries: 10
+
+  # RabbitMQ (Amazon MQ 대체)
+  rabbitmq:
+    image: 'rabbitmq:3-management'
+    container_name: tacohub-rabbitmq-local
+    environment:
+      - 'RABBITMQ_DEFAULT_USER=guest'
+      - 'RABBITMQ_DEFAULT_PASS=guest'
+    ports:
+      - '5672:5672'   # AMQP
+      - '15672:15672' # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      timeout: 20s
+      retries: 10
+
+  # LocalStack (AWS 서비스 에뮬레이션)
+  localstack:
+    image: 'localstack/localstack:latest'
+    container_name: tacohub-localstack
+    environment:
+      - 'SERVICES=s3,logs,ssm'  # S3, CloudWatch Logs, Parameter Store 활성화
+      - 'DEBUG=1'
+      - 'DATA_DIR=/var/lib/localstack'  # 경로 변경
+      - 'PERSISTENCE=1'  # 데이터 영속성
+      - 'AWS_DEFAULT_REGION=ap-northeast-2'
+      - 'AWS_ACCESS_KEY_ID=test'
+      - 'AWS_SECRET_ACCESS_KEY=test'
+    ports:
+      - '4566:4566'  # LocalStack main port
+      - '4571:4571'  # LocalStack legacy port (S3)
+    volumes:
+      - localstack_data:/var/lib/localstack  # 경로 변경
+      #- /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      timeout: 20s
+      retries: 10
+      start_period: 30s
+
+  # TacoHub Application (선택사항 - 개발시 IDE에서 실행 권장)
+  # tacohub-app:
+  #   build: .
+  #   container_name: tacohub-application
+  #   depends_on:
+  #     - mysql
+  #     - mongodb  
+  #     - redis
+  #     - rabbitmq
+  #     - localstack
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=local
+  #   env_file:
+  #     - .env
+
+# 데이터 영속성을 위한 볼륨 정의
+volumes:
+  mysql_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  localstack_data:
+    driver: local
+
+# 네트워크 정의 (컨테이너간 통신)
+networks:
+  default:
+    name: tacohub-local-network
+    driver: bridge

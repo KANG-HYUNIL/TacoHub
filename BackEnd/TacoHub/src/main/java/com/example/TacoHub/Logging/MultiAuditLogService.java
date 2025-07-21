@@ -2,6 +2,8 @@ package com.example.TacoHub.Logging;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -64,10 +66,36 @@ public class MultiAuditLogService implements AuditLogService {
         }
 
         // 3. CloudWatch 저장 (실시간 모니터링)
-        // 현재는 logback-spring.xml의 AUDIT Logger로 처리됨
-        // 별도 CloudWatch 서비스 구현 시 여기에 추가
+        try {
+            logToCloudWatch(auditLog);
+            log.debug("CloudWatch 저장 성공: traceId={}", traceId);
+        } catch (Exception e) {
+            log.error("CloudWatch 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+        } 
         
         log.debug("복합 저장 완료: traceId={}", traceId);
+    }
+
+    /**
+     * CloudWatch에 감사 로그 저장
+     * logback-spring.xml의 AUDIT Logger를 통해 자동으로 CloudWatch에 저장됨
+     * 
+     * @param auditLog 감사 로그 데이터
+     */
+    private void logToCloudWatch(AuditLog auditLog) {
+        try {
+            // AUDIT Logger를 통해 CloudWatch에 저장 (logback-spring.xml 설정)
+            Logger auditLogger = LoggerFactory.getLogger("AUDIT");
+            auditLogger.info("userId={}, action={}, className={}, methodName={}, clientIp={}, userAgent={}, traceId={}, timestamp={}, status={}, executionTimeMs={}, workspaceId={}, pageId={}, blockId={}", 
+                auditLog.getUserId(), auditLog.getAction(), auditLog.getClassName(), auditLog.getMethodName(),
+                auditLog.getClientIp(), auditLog.getUserAgent(), auditLog.getTraceId(),
+                auditLog.getTimestamp(), auditLog.getStatus(), auditLog.getExecutionTimeMs(),
+                auditLog.getWorkspaceId(), auditLog.getPageId(), auditLog.getBlockId());
+            
+            log.debug("CloudWatch 감사 로그 저장 완료: {} (User: {})", auditLog.getAction(), auditLog.getUserId());
+        } catch (Exception e) {
+            log.error("CloudWatch 감사 로그 저장 실패: action={}, userId={}", auditLog.getAction(), auditLog.getUserId(), e);
+        }
     }
 
     /**
@@ -92,6 +120,13 @@ public class MultiAuditLogService implements AuditLogService {
                     s3AuditLogService.saveAsync(auditLog);
                 } catch (Exception e) {
                     log.error("S3 병렬 저장 실패: traceId={}, error={}", traceId, e.getMessage());
+                }
+            },
+            () -> {
+                try {
+                    logToCloudWatch(auditLog);
+                } catch (Exception e) {
+                    log.error("CloudWatch 병렬 저장 실패: traceId={}, error={}", traceId, e.getMessage());
                 }
             }
         );

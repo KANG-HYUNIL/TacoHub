@@ -28,6 +28,10 @@ dependencies {
 	//aws dependency
 	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
 
+	// AWS Parameter Store 지원
+	implementation 'org.springframework.cloud:spring-cloud-starter-aws-parameter-store-config:2.2.6.RELEASE'
+	implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap:3.1.7'
+
 	// CloudWatch 로깅 의존성
 	implementation 'ca.pjer:logback-awslogs-appender:1.6.0'
 	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
@@ -80,6 +84,9 @@ dependencies {
 
 	//mysql dependency
 	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	//H2 Database (개발/테스트용)
+	runtimeOnly 'com.h2database:h2'
 
 	annotationProcessor 'org.projectlombok:lombok'
 	

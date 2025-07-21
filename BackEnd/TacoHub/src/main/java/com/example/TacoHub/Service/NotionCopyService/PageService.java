@@ -43,6 +43,16 @@ public class PageService extends BaseService {
     }
 
 
+    /** Workspace Root PageEntity를 생성하고 저장하는 메서드
+     * @param workspaceId 워크스페이스 ID
+     * @return PageEntity 생성된 페이지 엔티티
+     * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 경우
+     */
+    public PageEntity createPageEntity(UUID workspaceId, UUID parentPageId) {
+        return createPageEntity(workspaceId, parentPageId, null);
+    }
+
+
     /**
      * PageEntity를 생성하고 저장하는 메서드
      * @param workspaceId 워크스페이스 ID

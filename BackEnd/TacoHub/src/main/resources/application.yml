@@ -12,21 +12,16 @@ cloud:
     stack:
       auto: false
     s3:
-      bucket: ${AWS_S3_BUCKET_NAME:tacohub-audit-logs} # 환경변수에서 주입
-      batch-size: ${AWS_S3_BATCH_SIZE:1000}
-      flush-interval: ${AWS_S3_FLUSH_INTERVAL:300000}   # 5분 (밀리초)
-      compression: true        # GZIP 압축
+      bucket: ${s3.bucket-name:tacohub-audit-logs}
+      batch-size: ${s3.batch-size:1000}
+      flush-interval: ${s3.flush-interval:300000}
+      compression: true
       lifecycle:
-          standard: 90           # Standard 90일
-          ia: 365                # IA 1년
-          glacier: 2555          # Glacier 7년
+        standard: 90
+        ia: 365
+        glacier: 2555
       retention:
-        days: 2555               # S3 장기 보관 (7년)
-    logs:
-      # CloudWatch Logs 기본 설정 (환경별로 다른 값은 logback-spring.xml에서 처리)
-      group: ${AWS_CLOUDWATCH_LOG_GROUP_PROD:/aws/ec2/tacohub}
-      retention:
-        days: 30
+        days: 2555
 
 jwt:
   access:
@@ -36,30 +31,30 @@ jwt:
     secret: ${JWT_REFRESH_SECRET:} # 환경변수에서 주입
     expiration: ${JWT_REFRESH_EXPIRATION:204800000}  # 약 57시간 (밀리초)
 
-# 이메일 설정 (향후 사용 예정)
-#spring:
-#  mail:
-#    host: ${MAIL_HOST:smtp.gmail.com}
-#    port: ${MAIL_PORT:587}
-#    username: ${MAIL_USERNAME:} # 환경변수에서 주입
-#    password: ${MAIL_PASSWORD:} # 환경변수에서 주입
-#    protocol: smtp
-#    properties:
-#      mail:
-#        protocol: smtp
-#        smtp:
-#          auth: true
-#          starttls:
-#            enable: true
-#            required: true
-#          connectiontimeout: 20000
-#          timeout: 20000
-#          writetimeout: 20000
-#    auth-code-expiration: ${MAIL_AUTH_CODE_EXPIRATION:900000}  # 15분
-
+# 이메일 설정 (환경변수에서 주입)
 spring:
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:} # 환경변수에서 주입
+    password: ${MAIL_PASSWORD:} # 환경변수에서 주입
+    protocol: ${MAIL_PROTOCOL:smtp}
+    properties:
+      mail:
+        protocol: ${MAIL_PROTOCOL:smtp}
+        smtp:
+          auth: ${MAIL_AUTH:true}
+          starttls:
+            enable: ${MAIL_STARTTLS_ENABLE:true}
+            required: ${MAIL_STARTTLS_REQUIRED:true}
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:20000}
+          timeout: ${MAIL_TIMEOUT:20000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT:20000}
+    auth-code-expiration: ${MAIL_AUTH_CODE_EXPIRATION:900000}  # 15분
+
   application:
     name: TacoHub
+  # 프로파일 설정 (기본값: local)
   profiles:
     active: local
   servlet:
@@ -67,6 +62,52 @@ spring:
       max-file-size: 300MB
       max-request-size: 300MB
 
+  # RabbitMQ 공통 설정 (모든 프로파일에서 사용)
+  rabbitmq:
+    # 연결 풀 설정
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
+    requested-heartbeat: ${RABBITMQ_REQUESTED_HEARTBEAT:60}
+    
+    # Publisher 설정
+    publisher-confirms: ${RABBITMQ_PUBLISHER_CONFIRMS:true}
+    publisher-returns: ${RABBITMQ_PUBLISHER_RETURNS:true}
+    
+    # Consumer 설정
+    listener:
+      simple:
+        concurrency: 5
+        max-concurrency: 10
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          max-interval: 10000
+          multiplier: 2.0
+        default-requeue-rejected: false  # 실패 시 DLQ로 전송
+        acknowledge-mode: auto
+        prefetch: 10
+
+# RabbitMQ 커스텀 설정 (Exchange/Queue 이름 관리)
+rabbitmq:
+  dlq :
+    exchange: ${RABBITMQ_DLQ_EXCHANGE:tacohub.dlx.exchange}
+    queues:
+      api-server-shared-dlq: ${RABBITMQ_QUEUE_API_SERVER_SHARED_DLQ:tacohub.api.server.shared.dlq}
+    routing-keys:
+      dlq-api : "api.server.shared.dlq.#"
+  exchanges:
+    collaboration: ${RABBITMQ_EXCHANGE_COLLABORATION:tacohub.collaboration.exchange}
+    notification: ${RABBITMQ_EXCHANGE_NOTIFICATION:tacohub.notification.exchange}
+  queues:
+    block-updates: ${RABBITMQ_QUEUE_BLOCK_UPDATES:tacohub.block.updates}
+    page-updates: ${RABBITMQ_QUEUE_PAGE_UPDATES:tacohub.page.updates}
+    workspace-updates: ${RABBITMQ_QUEUE_WORKSPACE_UPDATES:tacohub.workspace.updates}
+    api-server-shared: ${RABBITMQ_QUEUE_API_SERVER_SHARED:tacohub.api.server.shared}
+  routing-keys:
+    block: "block.#"
+    page: "page.#"
+    workspace: "workspace.#"
+    api : "api.#"
 
 ---
 # Local 개발 환경 설정
@@ -92,32 +133,45 @@ spring:
         type: file
       async: true
 
-  # Local 개발 DB 설정 (H2 메모리 DB 사용)
+  # Local 개발 DB 설정 (Docker MySQL 사용)
   datasource:
-    url: jdbc:h2:mem:devdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${DB_URL_LOCAL:jdbc:mysql://localhost:3306/tacohub_local}
+    username: ${DB_USERNAME_LOCAL:admin}
+    password: ${DB_PASSWORD_LOCAL:tacobackend}
+    driver-class-name: com.mysql.cj.jdbc.Driver
     
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create-drop  # 개발용: 매번 테이블 재생성
     show-sql: true
     open-in-view: false
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
+    properties:
+      hibernate:
+        format_sql: true
 
-  # local Redis 설정
+  # local Redis 설정 (Docker)
   redis:
     host: ${REDIS_HOST_LOCAL:localhost}
-    port: ${REDIS_PORT:6379}
+    port: ${REDIS_PORT_LOCAL:6379}
     ssl: false
-    password: ${REDIS_PASSWORD:}
+    password: ${REDIS_PASSWORD_LOCAL:}
 
-  # Local MongoDB 설정
+  # Local MongoDB 설정 (Docker)
   data:
     mongodb:
-      uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
-      database: ${MONGODB_DATABASE_LOCAL:tacohub_local}
+      uri: ${MONGODB_URI_LOCAL:mongodb://admin:tacobackend@localhost:27017/springBootDocuments?authSource=admin}
+      database: ${MONGODB_DATABASE_LOCAL:springBootDocuments}
+
+  # Local RabbitMQ 연결 설정
+  rabbitmq:
+    host: ${RABBITMQ_HOST_LOCAL:localhost}
+    port: ${RABBITMQ_PORT_LOCAL:5672}
+    username: ${RABBITMQ_USERNAME_LOCAL:guest}
+    password: ${RABBITMQ_PASSWORD_LOCAL:guest}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST_LOCAL:/}
+    ssl:
+      enabled: ${RABBITMQ_SSL_ENABLED_LOCAL:false}
 
 
 
@@ -146,31 +200,41 @@ spring:
         enabled: true
         error-only: true      # ERROR/WARN만 CloudWatch 전송
 
-  # Test DB 설정 (H2 메모리 DB)
+  # Test DB 설정 (Parameter Store에서 값 로드)
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: jdbc:mysql://${database.host:test-db.amazonaws.com}:${database.port:3306}/${database.name:tacohub_test}
+    username: ${database.username:admin}
+    password: ${database.password:test-password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-    database-platform: org.hibernate.dialect.H2Dialect
+      ddl-auto: validate  # Test 환경에서는 validate 사용
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
 
-  # Test Redis 설정
+  # Test Redis 설정 (Parameter Store에서 값 로드)
   redis:
-    host: ${REDIS_HOST_LOCAL:localhost}
-    port: ${REDIS_PORT:6379}
+    host: ${redis.host:test-redis.amazonaws.com}
+    port: ${redis.port:6379}
     ssl: false
-    password: ${REDIS_PASSWORD:}
+    password: ${redis.password:}
 
-  # Test MongoDB 설정
+  # Test MongoDB 설정 (Parameter Store에서 값 로드)
   data:
     mongodb:
-      uri: ${MONGODB_URI_LOCAL:mongodb://localhost:27017}
-      database: tacohub_test
+      uri: ${mongodb.uri:mongodb://test-mongo.amazonaws.com:27017/tacohub_test}
+      database: ${mongodb.database:tacohub_test}
+
+  # Test RabbitMQ 연결 설정 (Parameter Store에서 값 로드)
+  rabbitmq:
+    host: ${rabbitmq.host:test-rabbitmq.amazonaws.com}
+    port: ${rabbitmq.port:5672}
+    username: ${rabbitmq.username:guest}
+    password: ${rabbitmq.password:guest}
+    virtual-host: ${rabbitmq.virtual-host:/test}
+    ssl:
+      enabled: ${rabbitmq.ssl.enabled:true}
 
 ---
 # 운영(Production) 환경 설정
@@ -190,7 +254,7 @@ spring:
   # Production 감사 로깅 설정
   audit:
     log:
-      storage:
+      storageㄹ:
         type: multi              # file + cloudwatch + s3
       cloudwatch:
         enabled: true
@@ -200,29 +264,41 @@ spring:
           info: 7                # INFO 로그 7일 보관
 
 
-  # Production DB 설정 (향후 RDS 연결)
-  #datasource:
-  #  url: ${DB_URL_PROD:jdbc:mysql://your-rds-endpoint:3306/tacohub_prod}
-  #  username: ${DB_USERNAME:admin}
-  #  password: ${DB_PASSWORD:tacobackend}
-  #  driver-class-name: com.mysql.cj.jdbc.Driver
-  #
-  #jpa:
-  #  hibernate:
-  #    ddl-auto: validate  # 운영환경에서는 validate 사용
-  #  show-sql: false
-  #  open-in-view: false
+  # Production DB 설정 (Parameter Store에서 값 로드)
+  datasource:
+   url: jdbc:mysql://${database.host:prod-rds.amazonaws.com}:${database.port:3306}/${database.name:tacohub_prod}
+   username: ${database.username:admin}
+   password: ${database.password:secure-prod-password}
+   driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+   hibernate:
+     ddl-auto: validate  # 운영환경에서는 validate 사용
+   show-sql: false
+   open-in-view: false
 
-  # Production Redis 설정 (향후 ElastiCache 연결)
-  #redis:
-  #  host: ${REDIS_HOST_PROD:taco-redis-cluster.cache.amazonaws.com}
-  #  port: ${REDIS_PORT:6379}
-  #  ssl: true
-  #  password: ${REDIS_PASSWORD:}
+  #Production Redis 설정 (Parameter Store에서 값 로드)
+  redis:
+   host: ${redis.host:prod-redis.cache.amazonaws.com}
+   port: ${redis.port:6379}
+   ssl: false
+   password: ${redis.password:}
 
-  # Production MongoDB 설정 (향후 DocumentDB 연결)
-  #data:
-  #  mongodb:
-  #    uri: ${MONGODB_URI_PROD:mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority}
-  #    database: ${MONGODB_DATABASE_PROD:tacohub_prod}
+  #Production MongoDB 설정 (Parameter Store에서 값 로드)
+  data:
+   mongodb:
+     uri: ${mongodb.uri:mongodb+srv://prod-cluster.mongodb.net/?retryWrites=true&w=majority}
+     database: ${mongodb.database:tacohub_prod}
+
+  # Production RabbitMQ 연결 설정 (Parameter Store에서 값 로드)
+  rabbitmq:
+    host: ${rabbitmq.host:prod-amazonmq.mq.ap-northeast-2.amazonaws.com}
+    port: ${rabbitmq.port:5671}
+    username: ${rabbitmq.username:tacohub-admin}
+    password: ${rabbitmq.password:secure-prod-password}
+    virtual-host: ${rabbitmq.virtual-host:tacohub-prod}
+    ssl:
+      enabled: ${rabbitmq.ssl.enabled:true}
+      # trust-store: ${rabbitmq.ssl.truststore:}
+      # trust-store-password: ${rabbitmq.ssl.truststore-password:}
 

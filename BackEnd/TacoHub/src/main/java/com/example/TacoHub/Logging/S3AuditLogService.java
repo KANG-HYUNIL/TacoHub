@@ -29,7 +29,6 @@ import java.io.ByteArrayOutputStream;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "audit.log.storage.type", havingValue = "s3-archive")
 public class S3AuditLogService implements AuditLogService {
 
     private final AmazonS3 s3Client;

@@ -28,8 +28,7 @@ import java.util.UUID;
 public class BlockDocument {
 
     @Id
-    @GeneratedValue(generator = "UUID", strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
+    @Field(name = "id")
     private UUID id; // 블록 고유 ID
 
     @Field("page_id")
@@ -97,6 +96,14 @@ public class BlockDocument {
      */
     public void updateTimestamp() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+
+    /**
+     * 블록 생성 시 UUID 자동 생성
+     */
+    public static BlockDocumentBuilder builder() {
+        return new BlockDocumentBuilder().id(UUID.randomUUID());
     }
 }
 

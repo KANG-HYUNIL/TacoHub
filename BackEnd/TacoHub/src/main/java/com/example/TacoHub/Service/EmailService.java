@@ -2,6 +2,7 @@ package com.example.TacoHub.Service;
 
 import com.example.TacoHub.Exception.EmailOperationException;
 import com.example.TacoHub.Exception.BusinessException;
+import com.example.TacoHub.Logging.AuditLogging;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
@@ -130,6 +131,7 @@ public class EmailService extends BaseService {
      * @param purpose 인증 목적(회원가입, 비밀번호 재설정 등)
      * @throws EmailOperationException 이메일 전송 중 오류 발생 시
      */
+    @AuditLogging(action = "인증코드_이메일_전송", includeParameters = true, includePerformance = true)
     @Transactional
     public void sendAuthCodeToEmail(String to, String purpose) {
         String methodName = "sendAuthCodeToEmail";
@@ -178,6 +180,7 @@ public class EmailService extends BaseService {
      * @return 이메일 전송 성공 여부
      * @throws EmailOperationException 이메일 전송 중 오류 발생 시
      */
+    @AuditLogging(action = "초대_이메일_전송", includeParameters = true, includePerformance = true)
     public boolean sendInvitationEmail(String to, String invitationToken, String workspaceName, 
                                      String inviterName, String role, String customMessage) {
         String methodName = "sendInvitationEmail";

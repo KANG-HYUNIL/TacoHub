@@ -14,6 +14,7 @@ import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Exception.BusinessException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
+import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceRepository;
 import com.example.TacoHub.Service.BaseService;
@@ -95,6 +96,7 @@ public class WorkSpaceService extends BaseService {
      * @param newWorkspaceName 생성할 워크스페이스의 이름
      * @return 생성된 워크스페이스의 Entity
      */
+    @AuditLogging(action = "워크스페이스_생성", includeParameters = true, includePerformance = true)
     @Transactional
     public WorkSpaceEntity createWorkspaceEntity(String newWorkspaceName) {
         String methodName = "createWorkspaceEntity";
@@ -146,6 +148,7 @@ public class WorkSpaceService extends BaseService {
      * @param newWorkspaceName 새로운 워크스페이스 이름
      * @param workspaceId 변경할 워크스페이스의 ID
      */
+    @AuditLogging(action = "워크스페이스_이름_변경", includeParameters = true, includePerformance = true)
     @Transactional
     public void editWorkspaceName(String newWorkspaceName, UUID workspaceId) {
         String methodName = "editWorkspaceName";
@@ -278,6 +281,7 @@ public class WorkSpaceService extends BaseService {
      * @return 조회된 WorkSpaceEntity
      * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 때
      */
+    @AuditLogging(action = "워크스페이스_조회", includeParameters = true)
     public WorkSpaceEntity getWorkSpaceEntityOrThrow(UUID workspaceId) {
         return workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> {

@@ -12,7 +12,7 @@ cloud:
     stack:
       auto: false
     s3:
-      bucket: ${s3.bucket-name:tacohub-audit-logs}
+      bucket: ${s3.bucket.audit-logs:tacohub-audit-logs}
       batch-size: ${s3.batch-size:1000}
       flush-interval: ${s3.flush-interval:300000}
       compression: true
@@ -33,6 +33,10 @@ jwt:
 
 # 이메일 설정 (환경변수에서 주입)
 spring:
+  # Bean 중복 오류 해결 - Docker Compose 자동 통합과 수동 설정 충돌 방지
+  main:
+    allow-bean-definition-overriding: true
+    
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}

@@ -18,7 +18,7 @@ import java.util.UUID;
 @Table(name = "workspace") // Specify the table name if needed
 public class WorkSpaceEntity extends BaseDateEntity {
     @Id
-    @GeneratedValue(generator = "UUID", strategy = GenerationType.UUID)
+    @GeneratedValue
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Workspace ID
 

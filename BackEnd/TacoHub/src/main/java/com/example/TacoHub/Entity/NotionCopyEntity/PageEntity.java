@@ -20,7 +20,7 @@ import java.util.UUID;
 public class PageEntity extends BaseDateEntity {
 
     @Id
-    @GeneratedValue(generator = "UUID", strategy = GenerationType.UUID)
+    @GeneratedValue
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Page ID
 

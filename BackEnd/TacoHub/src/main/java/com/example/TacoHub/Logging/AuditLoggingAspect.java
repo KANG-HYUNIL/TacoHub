@@ -26,8 +26,6 @@ public class AuditLoggingAspect {
     private final UserInfoExtractor userInfoExtractor;
     private final ParameterProcessor parameterProcessor;
     
-    // @Qualifier로 특정 구현체 선택 (선택사항)
-    // @Qualifier("fileAuditLogService") 
     private final AuditLogService auditLogService;
     
     /**

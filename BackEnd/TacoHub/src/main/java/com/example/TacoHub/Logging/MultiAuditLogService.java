@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -20,14 +22,25 @@ import java.util.List;
  * - 모든 로그 → S3 (장기 보관, 압축)
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "audit.log.storage.type", havingValue = "multi")
 public class MultiAuditLogService implements AuditLogService {
 
-    private final FileAuditLogService fileAuditLogService;
-    private final S3AuditLogService s3AuditLogService;
-    // private final CloudWatchAuditLogService cloudWatchAuditLogService; // TODO: 구현 예정
+    @Qualifier("fileAuditLogService")
+    private final AuditLogService fileAuditLogService;
+    
+    @Qualifier("s3AuditLogService")
+    private final AuditLogService s3AuditLogService;
+
+
+    public MultiAuditLogService(
+        @Qualifier("fileAuditLogService") @Lazy AuditLogService fileAuditLogService,
+        @Qualifier("s3AuditLogService") @Lazy AuditLogService s3AuditLogService
+    )
+    {
+        this.fileAuditLogService = fileAuditLogService;
+        this.s3AuditLogService = s3AuditLogService;
+
+    }
 
     @Override
     public void save(AuditLog auditLog) {

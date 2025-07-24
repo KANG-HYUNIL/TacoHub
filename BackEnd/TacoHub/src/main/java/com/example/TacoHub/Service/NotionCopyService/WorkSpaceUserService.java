@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import com.example.TacoHub.Entity.AccountEntity;
@@ -16,6 +17,7 @@ import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
 import com.example.TacoHub.Exception.BusinessException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceUserNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceUserOperationException;
+import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.WorkSpaceUserRepository;
 import com.example.TacoHub.Service.AccountService;
@@ -24,7 +26,6 @@ import com.example.TacoHub.Service.BaseService;
 import jakarta.transaction.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class WorkSpaceUserService extends BaseService {
 
@@ -34,6 +35,18 @@ public class WorkSpaceUserService extends BaseService {
     private final WorkSpaceService workSpaceService;
     private final AccountService accountService;
     private final UserInfoExtractor userInfoExtractor;
+
+    public WorkSpaceUserService(
+        WorkSpaceUserRepository workSpaceUserRepository,
+        @Lazy WorkSpaceService workSpaceService,
+        AccountService accountService,
+        UserInfoExtractor userInfoExtractor
+    ) {
+        this.workSpaceUserRepository = workSpaceUserRepository;
+        this.workSpaceService = workSpaceService;
+        this.accountService = accountService;
+        this.userInfoExtractor = userInfoExtractor;
+    }
 
     // ===== 입력값 검증 메서드 =====
     
@@ -146,6 +159,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
      */
+    @AuditLogging(action = "관리자_사용자_생성", includeParameters = true, includePerformance = true)
     public WorkSpaceUserEntity createAdminUserEntity(String userEmailId, UUID workspaceId) {
         String methodName = "createAdminUserEntity";
         log.info("[{}] Admin 사용자 생성 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
@@ -190,6 +204,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param userEmailId 사용자 이메일 ID
      * @throws WorkSpaceUserNotFoundException 사용자-워크스페이스 관계가 존재하지 않을 때
      */
+    @AuditLogging(action = "사용자_제거", includeParameters = true, includePerformance = true)
     @Transactional
     public void deleteWorkSpaceUserEntites(UUID workspaceId, String userEmailId) {
         String methodName = "deleteWorkSpaceUserEntites";
@@ -267,6 +282,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param workspaceId 워크스페이스 ID
      * @param newRole 새로운 워크스페이스 역할
      */
+    @AuditLogging(action = "사용자_역할_변경", includeParameters = true, includePerformance = true)
     @Transactional
     public void updateUserRole(String userEmailId, UUID workspaceId, WorkSpaceRole newRole) {
         String methodName = "updateUserRole";
@@ -444,6 +460,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
      */
+    @AuditLogging(action = "관리자_초대", includeParameters = true, includePerformance = true)
     public WorkSpaceUserEntity inviteAsAdmin(String userEmailId, UUID workspaceId) {
         String methodName = "inviteAsAdmin";
         log.info("[{}] Admin 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
@@ -488,6 +505,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
      */
+    @AuditLogging(action = "멤버_초대", includeParameters = true, includePerformance = true)
     public WorkSpaceUserEntity inviteAsMember(String userEmailId, UUID workspaceId) {
         String methodName = "inviteAsMember";
         log.info("[{}] Member 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
@@ -531,6 +549,7 @@ public class WorkSpaceUserService extends BaseService {
      * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
      */
+    @AuditLogging(action = "게스트_초대", includeParameters = true, includePerformance = true)
     public WorkSpaceUserEntity inviteAsGuest(String userEmailId, UUID workspaceId) {
         String methodName = "inviteAsGuest";
         log.info("[{}] Guest 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);

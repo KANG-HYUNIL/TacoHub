@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.UUID;
+
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import com.example.TacoHub.Entity.NotionCopyEntity.PageEntity;
@@ -14,19 +16,27 @@ import com.example.TacoHub.Exception.NotionCopyException.PageNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.PageOperationException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceNotFoundException;
 import com.example.TacoHub.Exception.NotionCopyException.WorkSpaceOperationException;
+import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Repository.NotionCopyRepository.PageRepository;
 import com.example.TacoHub.Service.BaseService;
 
 import jakarta.transaction.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PageService extends BaseService {
 
     private final PageRepository pageRepository;
     private final WorkSpaceService workSpaceService;
     private final BlockService blockService;
+
+    public PageService (@Lazy WorkSpaceService workSpaceService,
+                        @Lazy BlockService blockService,
+                        PageRepository pageRepository) {
+        this.workSpaceService = workSpaceService;
+        this.blockService = blockService;
+        this.pageRepository = pageRepository;
+    }
 
 
     private final String newPageName = "New Page";
@@ -60,6 +70,7 @@ public class PageService extends BaseService {
      * @return PageEntity 생성된 페이지 엔티티
      * @throws WorkSpaceNotFoundException 워크스페이스가 존재하지 않을 경우
      */
+    @AuditLogging(action = "페이지_생성", includeParameters = true, includePerformance = true)
     @Transactional
     public PageEntity createPageEntity(UUID workspaceId, UUID parentPagId, Float orderIndex) {
    
@@ -151,6 +162,7 @@ public class PageService extends BaseService {
      * @return PageEntity 검색 결과  
      * @throws PageNotFoundException 페이지가 존재하지 않을 경우
      */
+    @AuditLogging(action = "페이지_조회", includeParameters = true)
     public PageEntity getPageEntityOrThrow(UUID pageId) {
         return pageRepository.findById(pageId)
                 .orElseThrow(() -> {

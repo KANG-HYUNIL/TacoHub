@@ -67,29 +67,29 @@ services:
       timeout: 20s
       retries: 10
 
-  # LocalStack (AWS 서비스 에뮬레이션)
-  localstack:
-    image: 'localstack/localstack:latest'
-    container_name: tacohub-localstack
-    environment:
-      - 'SERVICES=s3,logs,ssm'  # S3, CloudWatch Logs, Parameter Store 활성화
-      - 'DEBUG=1'
-      - 'DATA_DIR=/var/lib/localstack'  # 경로 변경
-      - 'PERSISTENCE=1'  # 데이터 영속성
-      - 'AWS_DEFAULT_REGION=ap-northeast-2'
-      - 'AWS_ACCESS_KEY_ID=test'
-      - 'AWS_SECRET_ACCESS_KEY=test'
-    ports:
-      - '4566:4566'  # LocalStack main port
-      - '4571:4571'  # LocalStack legacy port (S3)
-    volumes:
-      - localstack_data:/var/lib/localstack  # 경로 변경
-      #- /var/run/docker.sock:/var/run/docker.sock
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      timeout: 20s
-      retries: 10
-      start_period: 30s
+  # # LocalStack (AWS 서비스 에뮬레이션)
+  # localstack:
+  #   image: 'localstack/localstack:latest'
+  #   container_name: tacohub-localstack
+  #   environment:
+  #     - 'SERVICES=s3,logs,ssm'  # S3, CloudWatch Logs, Parameter Store 활성화
+  #     - 'DEBUG=1'
+  #     - 'DATA_DIR=/var/lib/localstack'  # 경로 변경
+  #     - 'PERSISTENCE=1'  # 데이터 영속성
+  #     - 'AWS_DEFAULT_REGION=ap-northeast-2'
+  #     - 'AWS_ACCESS_KEY_ID=test'
+  #     - 'AWS_SECRET_ACCESS_KEY=test'
+  #   ports:
+  #     - '4566:4566'  # LocalStack main port
+  #     - '4571:4571'  # LocalStack legacy port (S3)
+  #   volumes:
+  #     - localstack_data:/var/lib/localstack  # 경로 변경
+  #     #- /var/run/docker.sock:/var/run/docker.sock
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+  #     timeout: 20s
+  #     retries: 10
+  #     start_period: 30s
 
   # TacoHub Application (선택사항 - 개발시 IDE에서 실행 권장)
   # tacohub-app:
@@ -118,8 +118,8 @@ volumes:
     driver: local
   rabbitmq_data:
     driver: local
-  localstack_data:
-    driver: local
+  # localstack_data:
+  #   driver: local
 
 # 네트워크 정의 (컨테이너간 통신)
 networks:

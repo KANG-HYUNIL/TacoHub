@@ -21,7 +21,7 @@ public class WorkSpaceUserEntity extends BaseDateEntity {
 
 
     @Id
-    @GeneratedValue(generator = "UUID", strategy = GenerationType.UUID)
+    @GeneratedValue
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Workspace User ID
 

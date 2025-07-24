@@ -3,6 +3,7 @@ package com.example.TacoHub.Service;
 import com.example.TacoHub.Dto.EmailVerificationDto;
 import com.example.TacoHub.Exception.AuthCodeOperationException;
 import com.example.TacoHub.Exception.BusinessException;
+import com.example.TacoHub.Logging.AuditLogging;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -131,6 +132,7 @@ public class AuthCodeService extends BaseService {
      * @return 인증 성공 여부 (true: 성공, false: 실패)
      * @throws AuthCodeOperationException 검증 과정에서 시스템 오류가 발생할 경우
      */
+    @AuditLogging(action = "인증_코드_검증", includeParameters = true, includeReturnValue = true, includePerformance = true)
     public boolean verifyAuthCode(EmailVerificationDto emailVerificationDto) {
         String methodName = "verifyAuthCode";
         log.info("[{}] 인증 코드 검증 시작: email={}", methodName, 
@@ -175,6 +177,7 @@ public class AuthCodeService extends BaseService {
      * @param purpose 인증 목적 (예: 회원가입, 비밀번호 재설정)
      * @throws AuthCodeOperationException Redis 저장 과정에서 오류가 발생할 경우
      */
+    @AuditLogging(action = "인증_코드_발송", includeParameters = true, includePerformance = true)
     public void setAuthCodeInRedis(String email, String authCode, String purpose) {
         String methodName = "setAuthCodeInRedis";
         log.info("[{}] 인증 코드 저장 시작: email={}, purpose={}", methodName, email, purpose);

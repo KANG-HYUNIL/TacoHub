@@ -44,7 +44,7 @@ public class BlockMessageHandler {
                     handleUpdateBlock(blockMessage);
                     break;
 
-                CASE DELETE :
+                case DELETE :
                     handleRemoveBlock(blockMessage);
                     break;
 
@@ -76,31 +76,31 @@ public class BlockMessageHandler {
      */
     private void handleCreateBlock(BlockMessage blockMessage)
     {
-        try {
-            log.info("Block 생성 처리 시작 - blockId: {}, workspaceId: {}", 
-                    blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
+        // try {
+        //     log.info("Block 생성 처리 시작 - blockId: {}, workspaceId: {}", 
+        //             blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
             
-            // TODO: Service 호출 구현 예정
-            // blockService.createBlock(blockMessage.getBlockData());
+        //     // TODO: Service 호출 구현 예정
+        //     // blockService.createBlock(blockMessage.getBlockData());
             
-            log.info("Block 생성 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
+        //     log.info("Block 생성 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
             
-        } catch (BlockOperationException e) {
-            // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
-            log.warn("Block 생성 비즈니스 오류 - blockId: {}, 사유: {}", 
-                    blockMessage.getBlockData().getId(), e.getMessage());
+        // } catch (BlockOperationException e) {
+        //     // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
+        //     log.warn("Block 생성 비즈니스 오류 - blockId: {}, 사유: {}", 
+        //             blockMessage.getBlockData().getId(), e.getMessage());
             
-        } catch (BusinessException e) {
-            // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
-            log.error("Block 생성 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
-                    blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
+        // } catch (BusinessException e) {
+        //     // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
+        //     log.error("Block 생성 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
+        //             blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
             
-        } catch (Exception e) {
-            // Handler 자체 오류 - Consumer로 전파
-            log.error("Block 생성 Handler 오류 - blockId: {}", 
-                    blockMessage.getBlockData().getId(), e);
-            throw new RuntimeException("Block 생성 Handler 처리 실패", e);
-        }
+        // } catch (Exception e) {
+        //     // Handler 자체 오류 - Consumer로 전파
+        //     log.error("Block 생성 Handler 오류 - blockId: {}", 
+        //             blockMessage.getBlockData().getId(), e);
+        //     throw new RuntimeException("Block 생성 Handler 처리 실패", e);
+        // }
     }
 
     /**
@@ -109,31 +109,31 @@ public class BlockMessageHandler {
      */
     private void handleUpdateBlock(BlockMessage blockMessage)
     {
-        try {
-            log.info("Block 수정 처리 시작 - blockId: {}, workspaceId: {}", 
-                    blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
+        // try {
+        //     log.info("Block 수정 처리 시작 - blockId: {}, workspaceId: {}", 
+        //             blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
             
-            // TODO: Service 호출 구현 예정
-            // blockService.updateBlock(blockMessage.getBlockData());
+        //     // TODO: Service 호출 구현 예정
+        //     // blockService.updateBlock(blockMessage.getBlockData());
             
-            log.info("Block 수정 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
+        //     log.info("Block 수정 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
             
-        } catch (BlockOperationException e) {
-            // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
-            log.warn("Block 수정 비즈니스 오류 - blockId: {}, 사유: {}", 
-                    blockMessage.getBlockData().getId(), e.getMessage());
+        // } catch (BlockOperationException e) {
+        //     // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
+        //     log.warn("Block 수정 비즈니스 오류 - blockId: {}, 사유: {}", 
+        //             blockMessage.getBlockData().getId(), e.getMessage());
             
-        } catch (BusinessException e) {
-            // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
-            log.error("Block 수정 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
-                    blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
+        // } catch (BusinessException e) {
+        //     // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
+        //     log.error("Block 수정 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
+        //             blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
             
-        } catch (Exception e) {
-            // Handler 자체 오류 - Consumer로 전파
-            log.error("Block 수정 Handler 오류 - blockId: {}", 
-                    blockMessage.getBlockData().getId(), e);
-            throw new RuntimeException("Block 수정 Handler 처리 실패", e);
-        }       
+        // } catch (Exception e) {
+        //     // Handler 자체 오류 - Consumer로 전파
+        //     log.error("Block 수정 Handler 오류 - blockId: {}", 
+        //             blockMessage.getBlockData().getId(), e);
+        //     throw new RuntimeException("Block 수정 Handler 처리 실패", e);
+        // }       
     }
 
     /**
@@ -142,31 +142,31 @@ public class BlockMessageHandler {
      */
     private void handleRemoveBlock(BlockMessage blockMessage)
     {
-        try {
-            log.info("Block 삭제 처리 시작 - blockId: {}, workspaceId: {}", 
-                    blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
+        // try {
+        //     log.info("Block 삭제 처리 시작 - blockId: {}, workspaceId: {}", 
+        //             blockMessage.getBlockData().getId(), blockMessage.getWorkspaceId());
             
-            // TODO: Service 호출 구현 예정
-            // blockService.deleteBlock(blockMessage.getBlockData().getId());
+        //     // TODO: Service 호출 구현 예정
+        //     // blockService.deleteBlock(blockMessage.getBlockData().getId());
             
-            log.info("Block 삭제 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
+        //     log.info("Block 삭제 처리 완료 - blockId: {}", blockMessage.getBlockData().getId());
             
-        } catch (BlockOperationException e) {
-            // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
-            log.warn("Block 삭제 비즈니스 오류 - blockId: {}, 사유: {}", 
-                    blockMessage.getBlockData().getId(), e.getMessage());
+        // } catch (BlockOperationException e) {
+        //     // Service에서 올라온 비즈니스 예외 - 로깅만, 전파 안함
+        //     log.warn("Block 삭제 비즈니스 오류 - blockId: {}, 사유: {}", 
+        //             blockMessage.getBlockData().getId(), e.getMessage());
             
-        } catch (BusinessException e) {
-            // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
-            log.error("Block 삭제 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
-                    blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
+        // } catch (BusinessException e) {
+        //     // Service에서 올라온 시스템 예외 - 로깅만, 전파 안함
+        //     log.error("Block 삭제 시스템 오류 - blockId: {}, 예외타입: {}, 메시지: {}", 
+        //             blockMessage.getBlockData().getId(), e.getClass().getSimpleName(), e.getMessage());
             
-        } catch (Exception e) {
-            // Handler 자체 오류 - Consumer로 전파
-            log.error("Block 삭제 Handler 오류 - blockId: {}", 
-                    blockMessage.getBlockData().getId(), e);
-            throw new RuntimeException("Block 삭제 Handler 처리 실패", e);
-        }
+        // } catch (Exception e) {
+        //     // Handler 자체 오류 - Consumer로 전파
+        //     log.error("Block 삭제 Handler 오류 - blockId: {}", 
+        //             blockMessage.getBlockData().getId(), e);
+        //     throw new RuntimeException("Block 삭제 Handler 처리 실패", e);
+        // }
     }
 
 }

@@ -3,21 +3,47 @@
     
     <!-- 환경별 프로파일 설정 -->
     <springProfile name="local">
-        <!-- Local 환경: 콘솔 + 파일 -->
-        <property name="LOG_LEVEL" value="DEBUG"/>
-        <property name="LOG_PATH" value="logs"/>
+        <logger name="AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_AUDIT"/>  <!-- 감사 로그 전용 비동기 Appender -->
+        </logger>
+
+        <root level="${LOG_LEVEL}">
+
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
+
     </springProfile>
-    
+
+
     <springProfile name="test">
-        <!-- Test 환경: 파일 + CloudWatch (ERROR만) -->
-        <property name="LOG_LEVEL" value="INFO"/>
-        <property name="LOG_PATH" value="logs"/>
+        <logger name="AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="CLOUDWATCH_AUDIT_TEST"/>   <!-- 감사 로그 전용 CloudWatch -->
+        </logger>
+        <root level="${LOG_LEVEL}">
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
+            <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
+            <appender-ref ref="CLOUDWATCH_APPLICATION_TEST"/>
+        </root>
+
+
     </springProfile>
-    
+
+
     <springProfile name="prod">
-        <!-- 운영 환경: CloudWatch + S3 (모든 레벨) -->
-        <property name="LOG_LEVEL" value="INFO"/>
-        <property name="LOG_PATH" value="/var/log/tacohub"/>
+        <logger name="AUDIT" level="INFO" additivity="false">
+            <appender-ref ref="CLOUDWATCH_AUDIT_PROD"/>   <!-- 감사 로그 전용 CloudWatch -->
+        </logger>
+
+        <root level="${LOG_LEVEL}">
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
+            <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
+            <appender-ref ref="CLOUDWATCH_APPLICATION_PROD"/>
+        </root>
     </springProfile>
 
     <!-- 패턴 정의 -->
@@ -27,6 +53,9 @@
     <!-- JSON 패턴 (CloudWatch용) -->
     <property name="JSON_PATTERN" 
               value='{"timestamp":"%d{ISO8601}","level":"%level","thread":"%thread","logger":"%logger","message":"%message","trace_id":"%X{traceId:-}","user_id":"%X{userId:-}"}%n'/>
+
+    <property name="LOG_LEVEL" value="${logging.level.root:-INFO}"/>
+    <property name="LOG_PATH" value="${logging.file.path:-logs}"/>
 
     <!-- 콘솔 Appender (개발용) -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
@@ -42,8 +71,7 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/application.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
+            <fileNamePattern>${LOG_PATH}/application.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
@@ -272,23 +300,11 @@
         <discardingThreshold>0</discardingThreshold>
     </appender>
 
-    <!-- Logger 설정 -->
-    
-    <!-- 감사 로그 전용 Logger (환경별 분기) -->
-    <logger name="AUDIT" level="INFO" additivity="false">
-        <appender-ref ref="ASYNC_AUDIT"/>  <!-- 기본 파일 저장 -->
-        
-        <!-- Test 환경: CloudWatch + S3 준비 -->
-        <springProfile name="test">
-            <appender-ref ref="CLOUDWATCH_AUDIT_TEST"/>   <!-- 감사 로그 전용 CloudWatch -->
 
-        </springProfile>
-        
-        <!-- Prod 환경: CloudWatch + S3 준비 -->
-        <springProfile name="prod">
-            <appender-ref ref="CLOUDWATCH_AUDIT_PROD"/>   <!-- 감사 로그 전용 CloudWatch -->
-        </springProfile>
-    </logger>
+
+
+
+
 
     <!-- AOP 로깅 -->
     <logger name="com.example.TacoHub.Logging" level="DEBUG"/>
@@ -304,33 +320,6 @@
         <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
     </springProfile>
 
-    <!-- Root Logger (환경별 분기) -->
-    <root level="${LOG_LEVEL}">
-        <!-- Local 환경: Console + File -->
-        <springProfile name="local">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_FILE"/>
-        </springProfile>
-        
-        <!-- Test 환경: File + CloudWatch(레벨별 분리) + S3(ERROR) -->
-        <springProfile name="test">
-            <appender-ref ref="ASYNC_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-            <appender-ref ref="CLOUDWATCH_ERROR_TEST"/>
-            <appender-ref ref="CLOUDWATCH_INFO_TEST"/>
-            <appender-ref ref="CLOUDWATCH_APPLICATION_TEST"/>
 
-        </springProfile>
-        
-        <!-- Prod 환경: File + CloudWatch(레벨별 분리) + S3(ERROR) -->
-        <springProfile name="prod">
-            <appender-ref ref="ASYNC_FILE"/>
-            <appender-ref ref="ERROR_FILE"/>
-            <appender-ref ref="CLOUDWATCH_ERROR_PROD"/>
-            <appender-ref ref="CLOUDWATCH_INFO_PROD"/>
-            <appender-ref ref="CLOUDWATCH_APPLICATION_PROD"/>
-
-        </springProfile>
-    </root>
 
 </configuration>

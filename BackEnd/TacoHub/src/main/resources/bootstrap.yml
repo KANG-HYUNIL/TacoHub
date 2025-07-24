@@ -8,6 +8,8 @@ spring:
     name: TacoHub
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  main :
+    allow-bean-definition-overriding: true  # Bean 중복 오류 해결
 
 # AWS 기본 설정 (모든 환경 공통)
 cloud:
@@ -29,7 +31,11 @@ spring:
   cloud:
     aws:
       paramstore:
-        enabled: false  # Local에서는 Docker Compose 의존성 사용
+        enabled: true
+        prefix: /tacohub/test
+        profile-separator: /
+        fail-fast: false  # Test 환경에서는 연결 실패 시에도 실행
+        name: ${spring.application.name}
 
 ---
 # Test 환경 - Parameter Store 사용

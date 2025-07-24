@@ -2,6 +2,8 @@ package com.example.TacoHub.Config;
 
 import com.example.TacoHub.Logging.*;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +23,7 @@ import java.util.concurrent.Executor;
 @Slf4j
 public class AuditLogConfig {
 
-    @Value("${audit.log.storage.type:file}")
+    @Value("${audit.log.storage.type:multi}")  // 기본값: multi
     private String storageType;
 
     /**
@@ -54,9 +56,11 @@ public class AuditLogConfig {
      */
     @Bean
     @Primary
-    public AuditLogService auditLogService(FileAuditLogService fileAuditLogService,
-                                          S3AuditLogService s3AuditLogService,
-                                          MultiAuditLogService multiAuditLogService) {
+    public AuditLogService auditLogService(
+        @Qualifier("fileAuditLogService") AuditLogService fileAuditLogService,
+        @Qualifier("s3AuditLogService") AuditLogService s3AuditLogService,
+        @Qualifier("multiAuditLogService") AuditLogService multiAuditLogService
+    ) {
         
         switch (storageType.toLowerCase()) {
             case "multi":

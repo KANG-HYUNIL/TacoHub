@@ -9,6 +9,7 @@ import com.example.TacoHub.Exception.AccountOperationException;
 import com.example.TacoHub.Exception.BusinessException;
 import com.example.TacoHub.Exception.EmailAlreadyExistsException;
 import com.example.TacoHub.Exception.InvalidAuthCodeException;
+import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,6 +114,7 @@ public class AccountService extends BaseService {
      * @param emailId 중복 검사할 이메일 ID
      * @return 이메일이 이미 존재하면 true, 존재하지 않으면 false 반환
      */
+    @AuditLogging(action = "이메일_중복_확인", includeParameters = true, includeReturnValue = true)
     public boolean checkEmailId(String emailId) {
         String methodName = "checkEmailId";
         
@@ -139,6 +141,7 @@ public class AccountService extends BaseService {
      * @param email 확인할 이메일 주소
      * @return 이메일이 존재하면 true, 존재하지 않으면 false 반환
      */
+    @AuditLogging(action = "사용자_존재_확인", includeParameters = true, includeReturnValue = true)
     public boolean existsByEmail(String email) {
         String methodName = "existsByEmail";
         
@@ -168,6 +171,7 @@ public class AccountService extends BaseService {
      * @throws EmailAlreadyExistsException 이미 존재하는 이메일인 경우 발생
      * @throws InvalidAuthCodeException 인증 코드가 유효하지 않은 경우 발생
      */
+    @AuditLogging(action = "회원가입", includeParameters = true, includePerformance = true)
     public void signUp(AccountDto accountDto, String authCode, String purpose) {
         String methodName = "signUp";
         log.info("[{}] 회원가입 시작: emailId={}", methodName, accountDto != null ? accountDto.getEmailId() : null);
@@ -228,6 +232,7 @@ public class AccountService extends BaseService {
      * @return 조회된 AccountEntity
      * @throws AccountNotFoundException 이메일이 존재하지 않을 때
      */
+    @AuditLogging(action = "사용자_정보_조회", includeParameters = true)
     public AccountEntity getAccountEntityOrThrow(String emailId) {
         return accountRepository.findByEmailId(emailId)
                 .orElseThrow(() -> {

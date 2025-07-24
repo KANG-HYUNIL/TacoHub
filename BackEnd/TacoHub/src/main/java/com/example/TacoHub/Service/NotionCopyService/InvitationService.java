@@ -18,6 +18,7 @@ import com.example.TacoHub.Enum.NotionCopyEnum.InvitationStatus;
 import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
 import com.example.TacoHub.Exception.NotionCopyException.InvitationOperationException;
 import com.example.TacoHub.Exception.BusinessException;
+import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Logging.UserInfoExtractor;
 import com.example.TacoHub.Repository.NotionCopyRepository.InvitationRepository;
 import com.example.TacoHub.Service.AccountService;
@@ -59,6 +60,7 @@ public class InvitationService extends BaseService {
      * @param request 초대 요청 정보 (이메일, 역할, 메시지 등)
      * @return 초대 생성 결과
      */
+    @AuditLogging(action = "사용자_초대", includeParameters = true, includePerformance = true)
     public InvitationResponse createInvitation(UUID workspaceId, InviteUserRequest request) {
         String methodName = "createInvitation";
         log.info("[{}] 워크스페이스 초대 시작: workspaceId={}, email={}, role={}", 
@@ -113,6 +115,7 @@ public class InvitationService extends BaseService {
      * @param expirationDays 만료 일수
      * @return 초대 생성 결과
      */
+    @AuditLogging(action = "사용자_초대_처리", includeParameters = true, includePerformance = true)
     public InvitationResponse inviteUser(UUID workspaceId, String email, WorkSpaceRole role, 
                                        String customMessage, Integer expirationDays) {
         String methodName = "inviteUser";
@@ -232,6 +235,7 @@ public class InvitationService extends BaseService {
  * @param token 초대 토큰
  * @return 초대 수락 결과
  */
+@AuditLogging(action = "초대_수락", includeParameters = true, includePerformance = true)
 public InvitationAcceptResponse acceptInvitationByToken(String token) {
     String methodName = "acceptInvitationByToken";
     log.info("[{}] 초대 수락 처리 시작: token={}", methodName, token);

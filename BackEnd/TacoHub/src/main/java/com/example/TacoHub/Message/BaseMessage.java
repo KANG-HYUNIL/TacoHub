@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.example.TacoHub.Enum.NotionCopyEnum.MessageEnum.MessageType;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -24,15 +25,16 @@ import java.util.UUID;
 public abstract class BaseMessage {
     
     @JsonProperty("messageId")
-    private String messageId = UUID.randomUUID().toString();
+    private final String messageId = UUID.randomUUID().toString();
     
     @JsonProperty("messageType")
     private MessageType messageType;
     
     @JsonProperty("timestamp")
-    private LocalDateTime timestamp = LocalDateTime.now();
+    private final LocalDateTime timestamp = LocalDateTime.now();
     
     @JsonProperty("metadata")
+    @Builder.Default
     private Map<String, Object> metadata = new HashMap<>();
     
     /**

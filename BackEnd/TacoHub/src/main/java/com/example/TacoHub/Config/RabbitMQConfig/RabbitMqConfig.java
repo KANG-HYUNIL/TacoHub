@@ -253,8 +253,7 @@ public class RabbitMqConfig {
                 .withArgument("x-dead-letter-routing-key", routingKeysDlqApi) // DLQ routing key 설정
                 .build();
                 
-        // RabbitAdmin을 통해 Queue 선언
-        rabbitAdmin.declareQueue(queue);
+
         
         return queue;
     }
@@ -269,8 +268,7 @@ public class RabbitMqConfig {
                 .to(collaborationExchange())
                 .with(routingKeysApi);
                 
-        // RabbitAdmin을 통해 Binding 선언
-        rabbitAdmin.declareBinding(binding);
+
         
         return binding;
     }

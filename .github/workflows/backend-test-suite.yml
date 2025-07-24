@@ -1,0 +1,364 @@
+# 백엔드 API 서버 전체 테스트 스위트 워크플로우 (Java 21)
+# 목적: 모든 단위 테스트, 통합 테스트를 실행하여 코드 품질 보장
+name: Backend API Server Test Suite
+
+# 워크플로우 실행 조건 설정
+on:
+  # 코드가 main 또는 dev 브랜치에 푸시될 때 실행
+  push:
+    branches: [ main, dev ]
+    # 백엔드 코드나 테스트 파일이 변경되었을 때만 실행
+    paths:
+      - 'BackEnd/**'
+      - '.github/workflows/backend-test-suite.yml'
+  
+  # Pull Request가 생성되거나 업데이트될 때 실행
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'BackEnd/**'
+      - '.github/workflows/backend-test-suite.yml'
+  
+  # 매일 새벽 2시에 정기 테스트 실행 (코드 회귀 방지)
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # 수동으로 워크플로우를 실행할 수 있도록 설정
+  workflow_dispatch:
+
+# 작업 정의
+jobs:
+  # 전체 테스트 실행 작업
+  test-suite:
+    # GitHub의 최신 Ubuntu 환경에서 실행
+    runs-on: ubuntu-latest
+    
+    # 작업 타임아웃 설정 (30분)
+    timeout-minutes: 30
+    
+    # 작업 실행 단계들
+    steps:
+    # 1단계: 저장소 코드를 GitHub Actions 실행 환경으로 다운로드
+    - name: 📥 코드 체크아웃
+      uses: actions/checkout@v4
+      with:
+        # 깊은 히스토리도 가져오기 (코드 커버리지 분석용)
+        fetch-depth: 0
+        
+    # 2단계: Java 21 개발 환경 설정
+    - name: ☕ Java 21 설정
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        check-latest: true
+        # Java 21의 새로운 기능들을 위한 설정
+        
+    # 3단계: Gradle 의존성 캐싱 (빌드 속도 향상)
+    - name: 📦 Gradle 의존성 캐시
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-test-java21-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-test-java21-
+          ${{ runner.os }}-gradle-test-
+          ${{ runner.os }}-gradle-
+
+    # 4단계: Docker Compose로 테스트용 데이터베이스 및 서비스 시작
+    - name: 🐳 테스트용 Docker 서비스 시작
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "🐳 테스트용 서비스 시작 중..."
+        # 테스트에 필요한 서비스들만 시작 (성능 최적화)
+        docker-compose -f compose.yaml up -d mysql mongodb redis rabbitmq
+        
+        # 실행된 컨테이너 확인
+        echo "🔍 실행 중인 테스트 서비스:"
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        
+    # 5단계: 테스트용 서비스들이 준비될 때까지 대기
+    - name: ⏳ 테스트 서비스 준비 대기
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "⏱️ 테스트 서비스들 준비 대기 중..."
+        
+        # MySQL 준비 대기
+        echo "MySQL 대기 중..."
+        timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
+        
+        # MongoDB 준비 대기
+        echo "MongoDB 대기 중..."
+        timeout 60s bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
+        
+        # Redis 준비 대기
+        echo "Redis 대기 중..."
+        timeout 30s bash -c 'until docker-compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+        
+        # RabbitMQ 준비 대기
+        echo "RabbitMQ 대기 중..."
+        timeout 60s bash -c 'until docker-compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
+        
+        echo "✅ 모든 테스트 서비스가 준비되었습니다!"
+
+    # 6단계: Gradle 권한 설정
+    - name: 🔧 Gradle 권한 설정
+      run: |
+        cd BackEnd/TacoHub
+        chmod +x ./gradlew
+
+    # 7단계: 단위 테스트 실행
+    - name: 🧪 단위 테스트 실행
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "🧪 단위 테스트 시작..."
+        # 단위 테스트만 실행 (통합 테스트 제외)
+        # Java 21의 성능 최적화 옵션 적용
+        ./gradlew test --tests "*Test" --parallel --max-workers=4
+        
+        echo "✅ 단위 테스트 완료!"
+      env:
+        # 테스트용 프로파일 사용
+        SPRING_PROFILES_ACTIVE: test
+        # Java 21 최적화 옵션
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
+        
+        # AWS 자격증명
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        
+        # JWT 보안 키
+        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+        
+        # 이메일 설정
+        MAIL_HOST: ${{ secrets.MAIL_HOST }}
+        MAIL_PORT: ${{ secrets.MAIL_PORT }}
+        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
+        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
+        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
+        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
+        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
+        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
+        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
+        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
+        
+
+
+    # 8단계: 통합 테스트 실행
+    - name: 🔗 통합 테스트 실행
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "🔗 통합 테스트 시작..."
+        # 통합 테스트 실행 (보통 *IT 또는 *IntegrationTest 이름 패턴 사용)
+        ./gradlew test --tests "*IT" --tests "*IntegrationTest" --parallel --max-workers=2
+        
+        echo "✅ 통합 테스트 완료!"
+      env:
+        SPRING_PROFILES_ACTIVE: test
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
+
+      env:
+        # 테스트용 프로파일 사용
+        SPRING_PROFILES_ACTIVE: test
+        # Java 21 최적화 옵션
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
+        
+        # AWS 자격증명
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        
+        # JWT 보안 키
+        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+        
+        # 이메일 설정
+        MAIL_HOST: ${{ secrets.MAIL_HOST }}
+        MAIL_PORT: ${{ secrets.MAIL_PORT }}
+        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
+        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
+        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
+        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
+        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
+        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
+        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
+        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
+  
+
+    # 9단계: 전체 테스트 실행 및 코드 커버리지 생성
+    - name: 📊 전체 테스트 및 코드 커버리지 생성
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "📊 전체 테스트 및 코드 커버리지 생성 중..."
+        # 모든 테스트 실행 + JaCoCo 코드 커버리지 리포트 생성
+        ./gradlew jacocoTestReport --parallel
+        
+        echo "✅ 테스트 및 커버리지 생성 완료!"
+      env:
+        SPRING_PROFILES_ACTIVE: test
+        # Java 21에 최적화된 JVM 메모리 설정
+        GRADLE_OPTS: "-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+UseZGC --enable-preview"
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
+
+      env:
+        # 테스트용 프로파일 사용
+        SPRING_PROFILES_ACTIVE: test
+        # Java 21 최적화 옵션
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
+        
+        # AWS 자격증명
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        
+        # JWT 보안 키
+        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+        
+        # 이메일 설정
+        MAIL_HOST: ${{ secrets.MAIL_HOST }}
+        MAIL_PORT: ${{ secrets.MAIL_PORT }}
+        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
+        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
+        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
+        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
+        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
+        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
+        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
+        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
+  
+
+    # 10단계: 테스트 결과 업로드
+    - name: 📤 테스트 결과 업로드
+      if: always()  # 테스트 성공/실패와 관계없이 항상 실행
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-java21
+        path: |
+          BackEnd/TacoHub/build/reports/tests/
+          BackEnd/TacoHub/build/test-results/
+        retention-days: 30  # 30일간 보관
+
+    # 11단계: 코드 커버리지 리포트 업로드
+    - name: 📈 코드 커버리지 리포트 업로드
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-java21
+        path: |
+          BackEnd/TacoHub/build/reports/jacoco/
+          BackEnd/TacoHub/build/jacocoHtml/
+        retention-days: 30
+
+    # 12단계: 코드 커버리지를 Codecov에 업로드 (선택사항)
+    - name: 📊 Codecov에 커버리지 업로드
+      if: success()  # 테스트가 성공했을 때만 실행
+      uses: codecov/codecov-action@v4
+      with:
+        file: BackEnd/TacoHub/build/reports/jacoco/test/jacocoTestReport.xml
+        fail_ci_if_error: false  # 커버리지 업로드 실패해도 CI는 성공
+        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}  # Codecov 토큰 (필요시 설정)
+
+    # 13단계: Java 21 특화 성능 리포트 생성
+    - name: ⚡ Java 21 성능 분석
+      if: success()
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "⚡ Java 21 성능 분석 시작..."
+        echo "================================"
+        
+        # JVM 정보 출력
+        java --version
+        echo "JVM Flags: $JAVA_TOOL_OPTIONS"
+        
+        # 테스트 실행 시간 분석
+        if [ -d "build/test-results/test" ]; then
+          echo "📊 테스트 실행 시간 통계:"
+          find build/test-results/test -name "*.xml" -exec grep -h "time=" {} \; | \
+            sed 's/.*time="\([^"]*\)".*/\1/' | \
+            awk '{sum+=$1; count++} END {printf "평균 테스트 시간: %.3f초, 총 테스트: %d개\n", sum/count, count}'
+        fi
+        
+        echo "================================"
+      env:
+        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
+
+    # 14단계: 테스트 결과 요약 생성
+    - name: 📋 테스트 결과 요약
+      if: always()
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "📋 테스트 결과 요약 (Java 21):"
+        echo "================================"
+        
+        # 테스트 결과 파일 확인
+        if [ -d "build/test-results/test" ]; then
+          echo "✅ 실행된 테스트 파일들:"
+          find build/test-results/test -name "*.xml" | wc -l
+          
+          echo "📊 테스트 통계:"
+          # XML 결과 파일에서 테스트 통계 추출
+          grep -h "testsuite" build/test-results/test/*.xml | head -5
+          
+          # 실패한 테스트가 있는지 확인
+          FAILED_TESTS=$(grep -r "failure\|error" build/test-results/test/ | wc -l)
+          if [ $FAILED_TESTS -gt 0 ]; then
+            echo "❌ 실패한 테스트 수: $FAILED_TESTS"
+          else
+            echo "✅ 모든 테스트 통과!"
+          fi
+        else
+          echo "❌ 테스트 결과를 찾을 수 없습니다."
+        fi
+        
+        echo "================================"
+
+    # 15단계: 정리 작업 (항상 실행)
+    - name: 🧹 리소스 정리
+      if: always()
+      run: |
+        cd BackEnd/TacoHub
+        
+        echo "🧹 테스트 환경 정리 중..."
+        
+        # Docker 컨테이너 정리
+        docker-compose -f compose.yaml down -v
+        
+        # 사용하지 않는 Docker 리소스 정리
+        docker system prune -f
+        
+        echo "✅ 정리 완료!"
+
+    # 16단계: 테스트 실패 시 슬랙 알림 (선택사항)
+    - name: 📢 테스트 실패 알림
+      if: failure()
+      run: |
+        echo "❌ Java 21 환경에서 테스트가 실패했습니다!"
+        echo "🔍 실패 원인을 분석하기 위해 업로드된 아티팩트를 확인하세요."
+        echo "📁 테스트 결과: test-results-java21"
+        echo "📁 커버리지 리포트: coverage-report-java21"
+        echo "⚡ Java 21의 새로운 기능 관련 이슈일 수 있습니다."

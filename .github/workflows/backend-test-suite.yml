@@ -169,7 +169,6 @@ jobs:
         SPRING_PROFILES_ACTIVE: test
         JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
 
-      env:
         # 테스트용 프로파일 사용
         SPRING_PROFILES_ACTIVE: test
         # Java 21 최적화 옵션
@@ -217,7 +216,6 @@ jobs:
         GRADLE_OPTS: "-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+UseZGC --enable-preview"
         JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
 
-      env:
         # 테스트용 프로파일 사용
         SPRING_PROFILES_ACTIVE: test
         # Java 21 최적화 옵션

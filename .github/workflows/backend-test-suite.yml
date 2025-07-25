@@ -6,7 +6,7 @@ name: Backend API Server Test Suite
 on:
   # 코드가 main 또는 dev 브랜치에 푸시될 때 실행
   push:
-    branches: [ main, dev ]
+    branches: [ dev ]
     # 백엔드 코드나 테스트 파일이 변경되었을 때만 실행
     paths:
       - 'BackEnd/**'
@@ -36,6 +36,38 @@ jobs:
     # 작업 타임아웃 설정 (30분)
     timeout-minutes: 30
     
+    env:
+      # 테스트용 프로파일 사용
+      SPRING_PROFILES_ACTIVE: test
+      # Java 21 최적화 옵션
+      JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
+      
+      # AWS 자격증명
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      
+      # JWT 보안 키
+      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+      
+      # 이메일 설정
+      MAIL_HOST: ${{ secrets.MAIL_HOST }}
+      MAIL_PORT: ${{ secrets.MAIL_PORT }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
+      MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
+      MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
+      MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
+      MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
+      MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
+      MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
+      MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
+      
+
     # 작업 실행 단계들
     steps:
     # 1단계: 저장소 코드를 GitHub Actions 실행 환경으로 다운로드
@@ -122,37 +154,7 @@ jobs:
         ./gradlew test --tests "*Test" --parallel --max-workers=4
         
         echo "✅ 단위 테스트 완료!"
-      env:
-        # 테스트용 프로파일 사용
-        SPRING_PROFILES_ACTIVE: test
-        # Java 21 최적화 옵션
-        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
-        
-        # AWS 자격증명
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        
-        # JWT 보안 키
-        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
-        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
-        
-        # 이메일 설정
-        MAIL_HOST: ${{ secrets.MAIL_HOST }}
-        MAIL_PORT: ${{ secrets.MAIL_PORT }}
-        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
-        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
-        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
-        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
-        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
-        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
-        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
-        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
-        
+     
 
 
     # 8단계: 통합 테스트 실행
@@ -165,40 +167,7 @@ jobs:
         ./gradlew test --tests "*IT" --tests "*IntegrationTest" --parallel --max-workers=2
         
         echo "✅ 통합 테스트 완료!"
-      env:
-
-
-        # 테스트용 프로파일 사용
-        SPRING_PROFILES_ACTIVE: test
-        # Java 21 최적화 옵션
-        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
-        
-        # AWS 자격증명
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        
-        # JWT 보안 키
-        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
-        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
-        
-        # 이메일 설정
-        MAIL_HOST: ${{ secrets.MAIL_HOST }}
-        MAIL_PORT: ${{ secrets.MAIL_PORT }}
-        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
-        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
-        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
-        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
-        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
-        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
-        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
-        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
-  
-
+      
     # 9단계: 전체 테스트 실행 및 코드 커버리지 생성
     - name: 📊 전체 테스트 및 코드 커버리지 생성
       run: |
@@ -209,41 +178,7 @@ jobs:
         ./gradlew jacocoTestReport --parallel
         
         echo "✅ 테스트 및 커버리지 생성 완료!"
-      env:
-        SPRING_PROFILES_ACTIVE: test
-        # Java 21에 최적화된 JVM 메모리 설정
-        GRADLE_OPTS: "-Xmx3072m -XX:MaxMetaspaceSize=768m -XX:+UseZGC --enable-preview"
-
-
-        # Java 21 최적화 옵션
-        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC -XX:+UnlockExperimentalVMOptions"
-        
-        # AWS 자격증명
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        
-        # JWT 보안 키
-        JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-        JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
-        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
-        
-        # 이메일 설정
-        MAIL_HOST: ${{ secrets.MAIL_HOST }}
-        MAIL_PORT: ${{ secrets.MAIL_PORT }}
-        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-        MAIL_PROTOCOL: ${{ secrets.MAIL_PROTOCOL }}
-        MAIL_AUTH: ${{ secrets.MAIL_AUTH }}
-        MAIL_STARTTLS_ENABLE: ${{ secrets.MAIL_STARTTLS_ENABLE }}
-        MAIL_STARTTLS_REQUIRED: ${{ secrets.MAIL_STARTTLS_REQUIRED }}
-        MAIL_CONNECTION_TIMEOUT: ${{ secrets.MAIL_CONNECTION_TIMEOUT }}
-        MAIL_TIMEOUT: ${{ secrets.MAIL_TIMEOUT }}
-        MAIL_WRITE_TIMEOUT: ${{ secrets.MAIL_WRITE_TIMEOUT }}
-        MAIL_AUTH_CODE_EXPIRATION: ${{ secrets.MAIL_AUTH_CODE_EXPIRATION }}
-  
-
+      
     # 10단계: 테스트 결과 업로드
     - name: 📤 테스트 결과 업로드
       if: always()  # 테스트 성공/실패와 관계없이 항상 실행
@@ -298,8 +233,7 @@ jobs:
         fi
         
         echo "================================"
-      env:
-        JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
+
 
     # 14단계: 테스트 결과 요약 생성
     - name: 📋 테스트 결과 요약

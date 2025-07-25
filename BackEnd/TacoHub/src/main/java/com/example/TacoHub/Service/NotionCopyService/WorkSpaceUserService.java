@@ -311,6 +311,8 @@ public class WorkSpaceUserService extends BaseService {
             // 5. Role 업데이트
             entity.setWorkspaceRole(newRole);
             workSpaceUserRepository.save(entity);
+
+            // TODO : rabbitmq
             
             log.info("[{}] 사용자 역할 업데이트 완료: userEmailId={}, workspaceId={}, oldRole={}, newRole={}", 
                     methodName, userEmailId, workspaceId, entity.getWorkspaceRole(), newRole);
@@ -362,6 +364,8 @@ public class WorkSpaceUserService extends BaseService {
             // 4. 멤버십 상태 업데이트
             entity.setMembershipStatus(newMembershipStatus);
             workSpaceUserRepository.save(entity);
+
+            // TODO : rabbitmq 
             
             log.info("[{}] 멤버십 상태 업데이트 완료: userEmailId={}, workspaceId={}, oldStatus={}, newStatus={}", 
                     methodName, userEmailId, workspaceId, entity.getMembershipStatus(), newMembershipStatus);

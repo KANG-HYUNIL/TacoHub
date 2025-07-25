@@ -14,8 +14,25 @@
  * @version 1.0.0
  */
 
+// Winston 로깅 패키지 및 기타 유틸리티 임포트
 import winston from 'winston';
 import path from 'path';
+import WinstonCloudwatch from 'winston-cloudwatch';
+
+// AWS SSM Package
+import { getSecret } from './aws';
+import { AuditLog } from "../audit/auditLog.types";
+import {
+  extractEventInfo,
+  extractUserInfo,
+  extractNetworkInfo,
+  extractParameters,
+  extractResult,
+  extractErrorInfo,
+  extractPerformance,
+  extractTimestamp
+} from "../audit/auditLog.extractor";
+import { UploadAuditLogToS3 } from "./aws";
 
 /**
  * 로그 레벨 설정
@@ -61,6 +78,8 @@ const productionFormat = winston.format.combine(
  */
 const logFormat = process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat;
 
+ 
+
 /**
  * Winston Logger 인스턴스 생성
  * 
@@ -71,131 +90,224 @@ const logFormat = process.env.NODE_ENV === 'production' ? productionFormat : dev
  * - 에러 스택 추적 지원
  * - 타임스탬프 자동 추가
  */
-export const logger = winston.createLogger({
-    level: logLevel,
-    format: logFormat,
-    defaultMeta: { 
-        service: 'websocket-server',
-        version: process.env.npm_package_version || '1.0.0',
-        environment: process.env.NODE_ENV || 'development'
-    },
-    transports: [
-        /**
-         * 에러 로그 파일 출력
-         * error 레벨 이상의 로그만 기록
-         */
-        new winston.transports.File({ 
-            filename: path.join(logDir, 'error.log'), 
-            level: 'error',
-            maxsize: 5 * 1024 * 1024, // 5MB
-            maxFiles: 5,               // 최대 5개 파일 로테이션
-            tailable: true
-        }),
-        
-        /**
-         * 전체 로그 파일 출력
-         * 모든 레벨의 로그 기록
-         */
-        new winston.transports.File({ 
-            filename: path.join(logDir, 'combined.log'),
-            maxsize: 10 * 1024 * 1024, // 10MB
-            maxFiles: 10,               // 최대 10개 파일 로테이션
-            tailable: true
-        }),
-        
-        /**
-         * 콘솔 출력
-         * 개발 시 실시간 로그 확인용
-         */
-        new winston.transports.Console({
-            format: process.env.NODE_ENV === 'production' 
-                ? winston.format.simple() 
-                : developmentFormat,
-            silent: process.env.NODE_ENV === 'test' // 테스트 환경에서는 콘솔 출력 비활성화
-        })
-    ],
-    
-    /**
-     * 예외 및 거부된 Promise 처리
-     * 애플리케이션 크래시 시에도 로그 기록 보장
-     */
-    exceptionHandlers: [
-        new winston.transports.File({ 
-            filename: path.join(logDir, 'exceptions.log') 
-        })
-    ],
-    rejectionHandlers: [
-        new winston.transports.File({ 
-            filename: path.join(logDir, 'rejections.log') 
-        })
-    ],
-    
-    /**
-     * 예외 발생 시 프로세스 종료 방지
-     * 로그 기록 후 계속 실행
-     */
-    exitOnError: false
-});
+let auditLogger : winston.Logger;
+let applicationLogger : winston.Logger;
+const auditLoggerTransports : winston.transport[] = [];
+const applicationLoggerTransports : winston.transport[] = [];
+
 
 /**
- * 개발 환경에서 추가 디버깅 정보 제공
+ * Winston Logger Instance 생성 및 초기화
  */
-if (process.env.NODE_ENV === 'development') {
-    logger.debug('Logger initialized in development mode');
-    logger.debug(`Log level: ${logLevel}`);
-    logger.debug(`Log directory: ${logDir}`);
+export async function initLogger()
+{
+
+    /**
+     * 현재 환경에 따른 CloudWatch Log Group 설정
+     */
+    const ApplicationLogGroup = await getSecret(`cloudwatch/log-group/application`);
+    const AuditLogGroup = await getSecret(`cloudwatch/log-group/audit`);
+    const ErrorLogGroup = await getSecret(`cloudwatch/log-group/error`);
+    const InfoLogGroup = await getSecret(`cloudwatch/log-group/info`);
+
+    // Local / Test&Prod 환경에 따라 CloudWatch 설정
+    if (process.env.NODE_ENV === 'local')
+    {
+        // Application Logger: 파일 + 콘솔
+        applicationLoggerTransports.push(
+            new winston.transports.File({
+            filename: path.join(logDir, 'application.log'),
+            level: 'info',
+            format: logFormat
+            }),
+            new winston.transports.Console({
+            format: logFormat
+            })
+        );
+
+        // Audit Logger: 파일 + 콘솔
+        auditLoggerTransports.push(
+            new winston.transports.File({
+            filename: path.join(logDir, 'audit.log'),
+            level: 'info',
+            format: logFormat
+            }),
+            new winston.transports.Console({
+            format: logFormat
+            })
+        );
+        
+    }
+
+
+    if (process.env.NODE_ENV === 'prod' || process.env.NODE_ENV === 'test')
+    {
+        // Application Logger: CloudWatch
+        applicationLoggerTransports.push(
+            new WinstonCloudwatch({
+            logGroupName: ApplicationLogGroup, // SSM에서 받아온 값
+            logStreamName: `${process.env.NODE_ENV}-application-${new Date().toISOString().split('T')[0]}`,
+            awsRegion: process.env.AWS_REGION,
+            awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+            level: 'info', // info 이상만 기록
+            jsonMessage: true
+            })
+        );
+
+        // Audit Logger: CloudWatch
+        auditLoggerTransports.push(
+            new WinstonCloudwatch({
+            logGroupName: AuditLogGroup,
+            logStreamName: `${process.env.NODE_ENV}-audit-${new Date().toISOString().split('T')[0]}`,
+            awsRegion: process.env.AWS_REGION,
+            awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+            level: 'info', // 감사 로그는 info 이상
+            jsonMessage: true
+            })
+        );
+    }
+
+    // Logger 인스턴스 생성
+    applicationLogger = winston.createLogger({
+        level: logLevel,
+        format: logFormat,
+        defaultMeta: { service: 'websocket-server', type: 'application' },
+        transports: applicationLoggerTransports,
+        exceptionHandlers : [
+            new WinstonCloudwatch({
+            logGroupName: ErrorLogGroup,
+            logStreamName: `${process.env.NODE_ENV}-error-${new Date().toISOString().split('T')[0]}`,
+            awsRegion: process.env.AWS_REGION,
+            awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+            level: 'error',
+            jsonMessage: true
+            })
+        ],
+        rejectionHandlers : [
+            new WinstonCloudwatch({
+            logGroupName: ErrorLogGroup,
+            logStreamName: `${process.env.NODE_ENV}-rejection-${new Date().toISOString().split('T')[0]}`,
+            awsRegion: process.env.AWS_REGION,
+            awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+            awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+            level: 'error',
+            jsonMessage: true
+            })
+        ],
+        exitOnError: false // 예외 발생 시 프로세스 종료 방지
+    });
+
+    auditLogger = winston.createLogger({
+        level: logLevel,
+        format: logFormat,
+        defaultMeta: { service: 'websocket-server', type: 'audit' },
+        transports: auditLoggerTransports,
+        exceptionHandlers: [
+            new WinstonCloudwatch({
+                logGroupName: ErrorLogGroup,
+                logStreamName: `${process.env.NODE_ENV}-error-${new Date().toISOString().split('T')[0]}`,
+                awsRegion: process.env.AWS_REGION,
+                awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+                level: 'error',
+                jsonMessage: true
+            })
+        ],
+        rejectionHandlers: [
+            new WinstonCloudwatch({
+                logGroupName: ErrorLogGroup,
+                logStreamName: `${process.env.NODE_ENV}-rejection-${new Date().toISOString().split('T')[0]}`,
+                awsRegion: process.env.AWS_REGION,
+                awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY,
+                level: 'error',
+                jsonMessage: true
+            })
+        ],
+        exitOnError: false // 예외 발생 시 프로세스 종료 방지
+    });
+
 }
 
+
 /**
- * 로깅 유틸리티 함수들
+ * Audit Logging 데코레이터
+ * 메서드 실행 시 감사 로그를 자동 기록하고 S3에 저장
  */
-export const logUtils = {
-    /**
-     * WebSocket 이벤트 로깅
-     */
-    logSocketEvent: (event: string, socketId: string, data?: any) => {
-        logger.info('Socket Event', {
-            event,
-            socketId,
-            data: data ? JSON.stringify(data) : undefined,
-            timestamp: new Date().toISOString()
-        });
-    },
-    
-    /**
-     * API 요청 로깅
-     */
-    logApiRequest: (method: string, url: string, statusCode: number, duration: number) => {
-        logger.http('API Request', {
-            method,
-            url,
-            statusCode,
-            duration,
-            timestamp: new Date().toISOString()
-        });
-    },
-    
-    /**
-     * 사용자 활동 로깅
-     */
-    logUserActivity: (userId: string, activity: string, details?: any) => {
-        logger.info('User Activity', {
-            userId,
-            activity,
-            details,
-            timestamp: new Date().toISOString()
-        });
-    },
-    
-    /**
-     * 성능 메트릭 로깅
-     */
-    logPerformance: (metric: string, value: number, unit: string) => {
-        logger.verbose('Performance Metric', {
-            metric,
-            value,
-            unit,
-            timestamp: new Date().toISOString()
-        });
-    }
-};
+export function AuditLogDecorator(eventName: string) {
+    return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) 
+    {
+        
+        // 원본 메서드 저장
+        const originalMethod = descriptor.value;
+
+        // 데코레이터가 적용된 메서드에 감사 로그 기능 추가
+        descriptor.value = async function (...args: any[]) {
+
+            // 감사 로그 정보 초기화
+            const start = Date.now();
+
+            // 감사 로그 객체 생성
+            let auditLog: AuditLog = {
+                ...extractEventInfo(eventName, propertyKey),
+                ...extractUserInfo(this),
+                ...extractNetworkInfo(this),
+                ...extractParameters(args),
+                ...extractTimestamp()
+            };
+
+            // 감사 로그 기록 시작
+            let result, error; // 결과 및 오류 변수 초기화
+
+            try {
+                // 원본 메서드 실행
+                result = await originalMethod.apply(this, args);
+
+                // 감사 로그 업데이트
+                auditLog = {
+                ...auditLog,
+                ...extractResult(result),
+                ...extractPerformance(start, Date.now()),
+                };
+
+                // 오류 정보 초기화 (성공 시)
+                auditLog.errorType = undefined;
+                auditLog.errorMessage = undefined;
+                auditLog.stackTrace = undefined;
+                auditLog = { ...auditLog, ...extractTimestamp() };
+                auditLogger.info("[AUDIT]", auditLog);
+            } 
+            catch (err) 
+            {
+                // 오류 발생 시 감사 로그 업데이트
+                error = err;
+
+                // 감사 로그에 오류 정보 추가
+                auditLog = {
+                ...auditLog,
+                ...extractErrorInfo(err),
+                ...extractPerformance(start, Date.now()),
+                };
+
+                // 오류 정보 초기화
+                auditLog = { ...auditLog, ...extractTimestamp() };
+                auditLogger.error("[AUDIT]", auditLog);
+                throw err;
+            } 
+            finally 
+            {
+                // S3 저장: key는 'audit/{날짜}/{이벤트명}-{userId}-{timestamp}.json' 형태
+                const dateStr = auditLog.timestamp?.slice(0, 10) || "unknown";
+                const userIdStr = auditLog.userId || "anonymous";
+                const key = `audit/${dateStr}/${eventName}-${userIdStr}-${auditLog.timestamp.replace(/[:.]/g,"")}.json`;
+                await UploadAuditLogToS3(key, JSON.stringify(auditLog));
+            }
+            return result;
+        };
+    };
+}
+
+export {applicationLogger, auditLogger};

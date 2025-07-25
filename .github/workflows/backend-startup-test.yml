@@ -6,7 +6,7 @@ name: Backend API Server Startup Test
 on:
   # 코드가 main 또는 dev 브랜치에 푸시될 때 실행
   push:
-    branches: [ main, dev ]
+    branches: [ dev ]
     # 백엔드 코드가 변경되었을 때만 실행 (효율성을 위해)
     paths:
       - 'BackEnd/**'
@@ -109,9 +109,7 @@ jobs:
         ./gradlew build -x test
         
         echo "✅ 빌드 완료!"
-      env:
-        # Java 21의 Virtual Threads 활성화 (성능 향상)
-        JAVA_TOOL_OPTIONS: "--enable-preview"
+
 
     # 7단계: Spring Boot 서버 기동 테스트
     - name: 🚀 Spring Boot 서버 기동 테스트

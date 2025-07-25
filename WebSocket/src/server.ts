@@ -21,7 +21,10 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { setupSocketIO } from './config/socket';
-import { logger } from './utils/logger';
+import { applicationLogger } from './utils/logger';
+import { handleError } from './utils/error-handler';
+import { ServerError } from './types/error/ServerError';
+import { startRabbitMQ } from './rabbitmq/rabbitmq.config';
 
 /**
  * HTTP 서버와 Socket.IO 서버를 생성하고 설정하는 함수
@@ -36,43 +39,45 @@ import { logger } from './utils/logger';
  * - REST API 엔드포인트 설정
  */
 export async function createServer() {
-    // Express 애플리케이션 인스턴스 생성
-    const app = express();
-    
-    // HTTP 서버 생성 (Socket.IO가 이를 기반으로 동작)
-    const httpServer = createHttpServer(app);
-    
-    // === 보안 및 기본 미들웨어 설정 ===
-    app.use(helmet()); // 보안 헤더 설정 (XSS, CSRF 등 방어)
-    app.use(cors());   // Cross-Origin 요청 허용
-    app.use(morgan('combined')); // HTTP 요청 로깅
-    app.use(express.json()); // JSON 요청 본문 파싱
-    
-    // === Socket.IO 서버 설정 ===
-    const io = new SocketIOServer(httpServer, {
-        cors: {
-            // 프론트엔드 도메인에서의 요청 허용
-            origin: process.env.FRONTEND_URL || "http://localhost:3000",
-            methods: ["GET", "POST"]
-        }
-    });
-    
-    // Socket.IO 이벤트 핸들러 및 미들웨어 설정
-    setupSocketIO(io);
-    
-    // === REST API 엔드포인트 ===
-    
-    /**
-     * 헬스체크 엔드포인트
-     * 서버 상태 확인 및 모니터링용
-     */
-    app.get('/health', (req, res) => {
-        res.json({ 
-            status: 'ok', 
-            message: 'WebSocket Server is running',
-            timestamp: new Date().toISOString()
+    try {
+        // Express 애플리케이션 인스턴스 생성
+        const app = express();
+
+        // HTTP 서버 생성 (Socket.IO가 이를 기반으로 동작)
+        const httpServer = createHttpServer(app);
+
+        // === 보안 및 기본 미들웨어 설정 ===
+        app.use(helmet()); // 보안 헤더 설정 (XSS, CSRF 등 방어)
+        app.use(cors());   // Cross-Origin 요청 허용
+        app.use(morgan('combined')); // HTTP 요청 로깅
+        app.use(express.json()); // JSON 요청 본문 파싱
+
+        // === RabbitMQ 연결 및 초기화 ===
+        await startRabbitMQ();
+
+        // === Socket.IO 서버 설정 ===
+        const io = new SocketIOServer(httpServer, {
+            cors: {
+                // 프론트엔드 도메인에서의 요청 허용
+                origin: process.env.FRONTEND_URL || "http://localhost:3000",
+                methods: ["GET", "POST"]
+            }
         });
-    });
-    
-    return httpServer;
+
+        // Socket.IO 이벤트 핸들러 및 미들웨어 설정
+        setupSocketIO(io);
+
+        // === REST API 엔드포인트 ===
+        app.get('/health', (req, res) => {
+            res.json({ 
+                status: 'ok', 
+                message: 'WebSocket Server is running',
+                timestamp: new Date().toISOString()
+            });
+        });
+
+        return httpServer;
+    } catch (error) {
+        handleError(new ServerError(`[createServer] 서버 기동 중 오류 발생: ${error instanceof Error ? error.message : String(error)}`), 'createServer');
+    }
 }

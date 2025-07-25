@@ -1,53 +1,46 @@
 # AwsS3Config
 
-**패키지:** com.example.TacoHub.Config
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Config</td></tr>
+  <tr><th>어노테이션</th><td>@Configuration</td></tr>
+  <tr><th>클래스 설명</th><td>AWS S3 연동을 위한 인증 정보 및 리전(region) 설정을 관리하고, AmazonS3 클라이언트 Bean을 생성하는 Spring Configuration 클래스.<br>S3 기반 감사 로그 저장, 파일 업로드 등에서 핵심적으로 사용된다.</td></tr>
+</table>
 
-## 1. 개요
-`AwsS3Config`는 AWS S3 연동을 위한 인증 정보와 리전(region) 설정을 관리하고, AmazonS3 클라이언트 Bean을 생성하는 Spring @Configuration 클래스입니다. S3 기반 감사 로그 저장, 파일 업로드 등에서 핵심적으로 사용됩니다.
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th></tr>
+  <tr><td>accessKey</td><td>String</td><td>AWS IAM Access Key. S3 접근 인증에 사용. application.yml에서 주입받음.</td></tr>
+  <tr><td>secretKey</td><td>String</td><td>AWS IAM Secret Key. S3 접근 인증에 사용. application.yml에서 주입받음.</td></tr>
+  <tr><td>region</td><td>String</td><td>S3가 위치한 AWS 리전(예: ap-northeast-2). application.yml에서 주입받음.</td></tr>
+</table>
 
-## 2. 의존성 및 환경
-- **Spring Framework**: @Configuration, @Bean, @Value
-- **AWS SDK**: com.amazonaws.services.s3.AmazonS3 등
-- **설정 파일**: application.yml 또는 application.properties에서 AWS 관련 설정값을 주입받음
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>AwsS3Config()</td><td>기본 생성자. Spring이 자동으로 빈을 생성할 때 사용.</td></tr>
+</table>
 
-## 3. 클래스 멤버 및 의미
-- `accessKey` (`String`): AWS IAM Access Key. S3 접근 인증에 사용
-- `secretKey` (`String`): AWS IAM Secret Key. S3 접근 인증에 사용
-- `region` (`String`): S3가 위치한 AWS 리전(예: ap-northeast-2)
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>s3Client()</td>
+    <td>AWS S3와 통신할 수 있는 AmazonS3 클라이언트 Bean을 생성.<br>accessKey, secretKey, region을 기반으로 인증 및 리전 설정을 적용한다.</td>
+    <td>없음 (모든 값은 클래스 멤버에서 주입)</td>
+    <td>AmazonS3<br>(com.amazonaws.services.s3.AmazonS3)</td>
+  </tr>
+</table>
 
-각 멤버는 `@Value` 어노테이션을 통해 외부 설정값을 주입받으며, 보안상 외부 노출 금지 필요
+## 동작 흐름 (Lifecycle)
+1. application.yml의 AWS 설정값을 읽어 필드에 주입한다.
+2. `s3Client()`가 호출되어 AmazonS3 Bean을 생성한다.
+3. S3 연동이 필요한 서비스/컴포넌트에서 DI로 AmazonS3 객체를 주입받아 사용한다.
 
-## 4. 메서드 상세 설명
-### 4.1 `AmazonS3 s3Client()`
-- **역할**: AWS S3와 통신할 수 있는 AmazonS3 클라이언트 객체를 Bean으로 등록
-- **반환값**: `AmazonS3` 인스턴스 (싱글턴)
-- **동작**:
-  1. `accessKey`, `secretKey`로 `BasicAWSCredentials` 객체 생성
-  2. `AWSStaticCredentialsProvider`로 인증 정보 래핑
-  3. 지정된 `region`으로 AmazonS3ClientBuilder를 통해 클라이언트 생성
-  4. 생성된 AmazonS3 객체를 Spring Bean으로 등록
-- **예외 처리**: AWS SDK 내부에서 인증 정보가 잘못되었거나 네트워크 오류 발생 시 런타임 예외 발생 가능
-- **사용 예시**: S3 파일 업로드/다운로드, 감사 로그 저장 등에서 DI로 주입받아 사용
+## 활용 예시 (Usage)
+- S3 기반 감사 로그 저장, 대용량 파일 업로드/다운로드, 정적 파일 관리 등.
 
-#### 인자
-없음 (모든 값은 클래스 멤버에서 주입)
-
-#### 반환값
-- `AmazonS3`: AWS S3와 연동 가능한 클라이언트 객체
-
-#### 예외
-- AWS 인증 정보가 잘못되었거나 네트워크 장애 시 AWS SDK에서 예외 발생
-
-## 5. 동작 흐름
-1. Spring 컨테이너가 AwsS3Config를 초기화할 때, application.yml의 AWS 설정값을 읽어 멤버 변수에 주입
-2. `s3Client()` 메서드가 호출되어 AmazonS3 Bean이 생성됨
-3. 이후 S3 연동이 필요한 서비스/컴포넌트에서 DI로 AmazonS3 객체를 주입받아 사용
-
-## 6. 활용 예시
-- S3 기반 감사 로그 저장 서비스에서 파일 업로드/다운로드
-- 대용량 데이터 백업, 정적 파일 관리 등
-
-## 7. 보안 및 운영상 주의사항
-- Access Key/Secret Key는 절대 코드에 하드코딩하지 않고, 환경변수 또는 외부 설정파일로 관리
-- IAM 권한 최소화 원칙 적용
-- 리전(region) 설정이 실제 S3 버킷과 일치해야 정상 동작
+## 예외 및 주의사항 (Exceptions & Notes)
+- Access Key/Secret Key는 절대 코드에 하드코딩하지 않고, 환경변수 또는 외부 설정파일로 관리해야 한다.
+- IAM 권한 최소화 원칙 적용.
+- 리전(region) 설정이 실제 S3 버킷과 일치해야 정상 동작한다.
+- AWS 인증 정보가 잘못되었거나 네트워크 장애 시 AWS SDK에서 예외 발생.

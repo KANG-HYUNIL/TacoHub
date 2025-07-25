@@ -15,58 +15,84 @@
 
 ### 상속 관계
 - `extends BaseDateDTO`: 생성일시/수정일시 등 공통 필드 상속
+# PageDTO
 
-## 필드 구조
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Dto.NotionCopyDTO</td></tr>
+  <tr><th>클래스 설명</th><td>페이지 정보 전송을 위한 DTO(Data Transfer Object) 클래스.<br>Notion 스타일의 계층형 페이지 구조와 워크스페이스 연동 정보를 클라이언트와 서버 간에 주고받기 위한 데이터 구조를 제공한다.</td></tr>
+</table>
 
-### 1. 기본 페이지 정보
-```java
-private UUID id;
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th><th>예시/제약</th></tr>
+  <tr><td>id</td><td>UUID</td><td>페이지의 고유 식별자. 서버에서 자동 생성.</td><td>"987fcdeb-..."</td></tr>
+  <tr><td>title</td><td>String</td><td>페이지 제목. 사용자가 직접 수정 가능.</td><td>"프로젝트 계획서"</td></tr>
+  <tr><td>path</td><td>String</td><td>페이지 경로(URL 또는 계층 경로).</td><td>"/workspace/project/design/mockup"</td></tr>
+  <tr><td>orderIndex</td><td>Integer</td><td>같은 부모 하위에서의 페이지 순서.</td><td>0, 1, 2...</td></tr>
+  <tr><td>workspaceId</td><td>UUID</td><td>연동된 워크스페이스의 ID.</td><td>"w1a2c3d4-..."</td></tr>
+  <tr><td>parentId</td><td>UUID</td><td>상위 페이지의 ID(계층 구조).</td><td>"p1a2c3d4-..."</td></tr>
+  <tr><td>createdAt</td><td>LocalDateTime</td><td>페이지 생성 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+  <tr><td>updatedAt</td><td>LocalDateTime</td><td>페이지 수정 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+</table>
+
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>PageDTO()</td><td>기본 생성자. Lombok 또는 명시적 생성자 사용 가능.</td></tr>
+  <tr><td>PageDTO(id, title, path, orderIndex, workspaceId, parentId, createdAt, updatedAt)</td><td>모든 필드를 초기화하는 생성자.</td></tr>
+</table>
+
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>getter/setter</td>
+    <td>각 필드의 값을 조회/설정하는 메서드. Lombok @Data로 자동 생성.</td>
+    <td>각 필드별(UUID id, ...)</td>
+    <td>해당 필드 값</td>
+  </tr>
+</table>
+
+## 상속 관계 (Inheritance)
+<table>
+  <tr><th>부모 클래스</th><th>설명</th></tr>
+  <tr><td>BaseDateDTO</td><td>생성일시(createdAt), 수정일시(updatedAt) 정보 포함.</td></tr>
+</table>
+
+## 동작 흐름 (Lifecycle)
+1. 클라이언트/서버 간 페이지 데이터 전송 시 PageDTO 객체가 생성된다.
+2. 각 필드에 값이 할당되어 페이지 정보가 전달된다.
+3. Entity 변환, DB 저장, 비즈니스 로직 처리 등에 활용된다.
+
+## 활용 예시 (Usage)
+페이지 생성 요청:
+```json
+{
+  "title": "프로젝트 계획서",
+  "path": "/workspace/project/design/mockup",
+  "orderIndex": 0,
+  "workspaceId": "w1a2c3d4-...",
+  "parentId": null
+}
 ```
-- **목적**: 페이지의 고유 식별자
-- **타입**: UUID
-- **null 허용**: 새 페이지 생성 시에는 null, 서버에서 자동 생성
-
-```java
-private String title;
+페이지 조회 응답:
+```json
+{
+  "id": "987fcdeb-...",
+  "title": "프로젝트 계획서",
+  "path": "/workspace/project/design/mockup",
+  "orderIndex": 0,
+  "workspaceId": "w1a2c3d4-...",
+  "parentId": null,
+  "createdAt": "2024-01-15T10:30:00",
+  "updatedAt": "2024-01-15T10:30:00"
+}
 ```
-- **목적**: 페이지 제목
-- **사용자 편집**: 사용자가 직접 수정 가능
-- **기본값**: "New Page" (서비스에서 설정)
 
-```java
-private String path;
-```
-- **목적**: 페이지 경로 (URL 또는 계층 경로)
-- **활용**: 
-  - 브레드크럼 네비게이션
-  - URL 라우팅
-  - 페이지 검색
-- **예시**: `/workspace/project/design/mockup`
-
-```java
-private Integer orderIndex;
-```
-- **목적**: 같은 부모 하위에서의 페이지 순서
-- **시작값**: 0
-- **활용**: 사이드바, 네비게이션에서의 페이지 순서
-
-```java
-private Boolean isRoot;
-```
-- **목적**: 루트 페이지 여부 식별
-- **true**: 워크스페이스 직속 루트 페이지
-- **false**: 다른 페이지의 하위 페이지
-
-### 2. 워크스페이스 연관 정보
-```java
-private UUID workspaceId;
-```
-- **목적**: 페이지가 속한 워크스페이스 ID
-- **필수성**: 모든 페이지는 특정 워크스페이스에 소속
-- **활용**: 워크스페이스별 페이지 필터링
-
-```java
-private String workspaceName;
+## 예외 및 주의사항 (Exceptions & Notes)
+- title, path 등 필수값 누락 시 API 요청이 거부될 수 있음.
+- orderIndex는 같은 부모 하위에서 고유해야 함.
+- createdAt, updatedAt은 서버에서 자동 관리됨.
 ```
 - **목적**: 워크스페이스 이름 (비정규화)
 - **편의성**: 페이지 정보 조회 시 별도 워크스페이스 조회 불필요

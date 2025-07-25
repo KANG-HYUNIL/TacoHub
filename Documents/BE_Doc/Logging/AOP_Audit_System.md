@@ -14,165 +14,99 @@ TacoHub의 AOP(Aspect-Oriented Programming) 기반 감사 로깅 시스템은 �
 AuditLoggingAspect (핵심 조정자)
     ├─ UserInfoExtractor (사용자 정보 전문가)
     │   ├─ SecurityContext 접근
-    │   └─ HTTP Request 접근
-    ├─ ParameterProcessor (파라미터 처리 전문가)
-    │   ├─ 메서드 시그니처 분석
-    │   ├─ 파라미터 직렬화
-    │   └─ 민감정보 마스킹
-    ├─ AuditLog (데이터 모델)
-    │   └─ 모든 감사 정보 구조화
-    └─ AuditLogService (저장 담당)
-        ├─ FileAuditLogService
-        ├─ S3AuditLogService
-        └─ MultiAuditLogService
+
+# TacoHub AOP 기반 감사 로깅 시스템
+
+## 1. 도입 동기 및 설계 원칙
+
+TacoHub는 비즈니스 도메인 추적, 법적 규정 준수, 운영 감사 목적을 위해 AOP 기반 감사 로깅 시스템을 도입했습니다. 서비스 코드의 중복 로깅, 정보 누락, 정책 변경의 어려움을 해결하고, 구조화된 JSON 로그와 환경별 저장소(파일/CloudWatch/S3)로 일관된 감사 체계를 제공합니다.
+
+## 2. 구조와 동작 원리
+
+### 2.1 커스텀 어노테이션
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface AuditLogging {
+    String action();
+    boolean includeParameters() default true;
+    boolean includeReturnValue() default false;
+    boolean includePerformance() default true;
+    boolean includeUserInfo() default true;
+    boolean includeErrorDetails() default true;
+}
 ```
 
-### 2.2 Spring AOP 프록시 메커니즘
-
+### 2.2 AuditLoggingAspect 핵심 로직
 ```java
-// 클라이언트 코드
-WorkSpaceService workspaceService = applicationContext.getBean(WorkSpaceService.class);
-workspaceService.createWorkspaceEntity("새 워크스페이스");
-
-// 실제 런타임 구조
-클라이언트 코드
-    ↓
-Proxy 객체 (Spring이 런타임에 생성)
-    ├─ AuditLoggingAspect 실행 (사전 처리)
-    ├─ 실제 WorkSpaceService 메서드 호출
-    └─ AuditLoggingAspect 실행 (사후 처리)
-    ↓
-실제 WorkSpaceService 객체
-```
-
-## 3. 핵심 컴포넌트 상세
-
-### 3.1 @AuditLogging 어노테이션
-
-**위치**: `com.example.TacoHub.Logging.AuditLogging`
-
-#### 설정 옵션
-```java
-@AuditLogging(
-    action = "워크스페이스_생성",      // 로그에 표시될 액션명
-    includeParameters = true,        // 파라미터 로깅 포함 여부
-    includeReturnValue = false,      // 반환값 로깅 포함 여부
-    includePerformance = true,       // 실행시간 측정 여부
-    includeUserInfo = true,          // 사용자 정보 포함 여부
-    includeErrorDetails = true       // 에러 상세정보 여부
-)
-```
-
-#### 사용 예시
-```java
-@Service
-public class WorkSpaceService {
-    
-    @AuditLogging(action = "워크스페이스_생성", includeParameters = true)
-    public WorkSpaceEntity createWorkspaceEntity(String newWorkspaceName) {
-        // 순수한 비즈니스 로직만!
-        WorkSpaceEntity newWorkSpace = WorkSpaceEntity.builder()
-            .name(newWorkspaceName.trim())
-            .build();
-            
-        return workspaceRepository.save(newWorkSpace);
+@Aspect
+@Component
+@RequiredArgsConstructor
+public class AuditLoggingAspect {
+    @Around("@annotation(auditLogging)")
+    public Object performAuditLogging(ProceedingJoinPoint joinPoint, AuditLogging auditLogging) throws Throwable {
+        // 사전 정보 수집
+        String traceId = generateTraceId();
+        long startTime = System.currentTimeMillis();
+        UserInfo userInfo = userInfoExtractor.extractUserInfo();
+        Map<String, Object> parameters = parameterProcessor.extractParameters(joinPoint.getSignature(), joinPoint.getArgs());
+        try {
+            Object result = joinPoint.proceed();
+            AuditLog auditLog = createSuccessLog(traceId, userInfo, parameters, startTime, auditLogging, result);
+            auditLogService.saveAsync(auditLog);
+            return result;
+        } catch (Exception e) {
+            AuditLog auditLog = createErrorLog(traceId, userInfo, parameters, startTime, auditLogging, e);
+            auditLogService.saveAsync(auditLog);
+            throw e;
+        }
     }
 }
 ```
 
-### 3.2 AuditLoggingAspect (핵심 조정자)
-
-**위치**: `com.example.TacoHub.Logging.AuditLoggingAspect`
-
-#### @Around Advice 실행 흐름
+### 2.3 정보 추출 컴포넌트
 ```java
-@Around("@annotation(auditLogging)")
-public Object performAuditLogging(ProceedingJoinPoint joinPoint, AuditLogging auditLogging) throws Throwable {
-    
-    // === 1단계: 사전 처리 ===
-    String traceId = UUID.randomUUID().toString();
-    long startTime = System.currentTimeMillis();
-    
-    // 사용자 정보 추출 (SecurityContext)
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    String userId = extractUserId(auth);
-    
-    // 클라이언트 정보 추출 (HTTP Request)
-    String clientIp = userInfoExtractor.getClientIpAddress();
-    
-    // 파라미터 정보 추출
-    Map<String, Object> parameters = parameterProcessor.extractParameters(signature, args);
-    
-    try {
-        // === 2단계: 실제 메서드 실행 ===
-        Object result = joinPoint.proceed();  // 실제 서비스 메서드 호출
-        
-        // === 3단계: 성공 사후 처리 ===
-        long executionTime = System.currentTimeMillis() - startTime;
-        
-        AuditLog auditLog = AuditLog.builder()
-            .traceId(traceId)
-            .userId(userId)
-            .clientIp(clientIp)
-            .parameters(parameters)
-            .executionTimeMs(executionTime)
-            .status("SUCCESS")
-            .build();
-            
-        auditLogService.save(auditLog);
-        return result;
-        
-    } catch (Exception e) {
-        // === 4단계: 예외 사후 처리 ===
-        // 오류 정보도 반드시 기록하고 예외를 다시 던짐
-        auditLogService.save(createErrorAuditLog(traceId, userId, e));
-        throw e;  // 반드시 예외를 다시 던져야 함!
+@Component
+public class UserInfoExtractor {
+    public UserInfo extractUserInfo() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
+            return UserInfo.builder()
+                .userId(userDetails.getAccountId())
+                .userEmail(userDetails.getUsername())
+                .userRole(extractRole(userDetails))
+                .clientIp(getClientIpAddress())
+                .userAgent(getUserAgent())
+                .sessionId(getSessionId())
+                .build();
+        }
+        return UserInfo.anonymous();
     }
 }
 ```
 
-**관련 문서**: [AuditLoggingAspect.md](../Classes/Logging/AuditLoggingAspect.md)
+## 3. 실제 사용 예시
 
-### 3.3 UserInfoExtractor (사용자/네트워크 정보 추출)
-
-**위치**: `com.example.TacoHub.Logging.UserInfoExtractor`
-
-#### 주요 기능
-- **SecurityContext 접근**: JWT 기반 사용자 정보 추출
-- **HTTP Request 접근**: 실시간 클라이언트 정보 추출
-- **프록시 환경 대응**: 실제 IP 추출 로직
-
-#### 정보 추출 과정
+### 3.1 서비스 메서드 적용 예시
 ```java
-// JWT에서 추출된 사용자 정보 (SecurityContext)
-Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
-String userId = userDetails.getAccountId();
-String userEmail = userDetails.getUsername();
-String userRole = userDetails.getAuthorities().iterator().next().getAuthority();
+@AuditLogging(action = "워크스페이스_생성", includeParameters = true)
+public WorkSpaceEntity createWorkspaceEntity(String newWorkspaceName) { ... }
 
-// HTTP Request에서 실시간 정보 추출
-HttpServletRequest request = getCurrentRequest();
-String clientIp = getClientIpAddress(request);  // 프록시 고려한 실제 IP
-String userAgent = request.getHeader("User-Agent");
-String sessionId = request.getSession().getId();
+@AuditLogging(action = "블록_생성", includeParameters = true)
+public BlockDTO createBlock(BlockDTO blockDTO) { ... }
 ```
 
-### 3.4 ParameterProcessor (파라미터 안전 처리)
+## 4. 운영 전략 및 주의사항
 
-**위치**: `com.example.TacoHub.Logging.ParameterProcessor`
+- 감사 로그는 파일/CloudWatch/S3에 구조화된 JSON으로 저장
+- 민감정보(비밀번호, 토큰 등)는 자동 마스킹
+- 환경별 logback/Parameter Store로 저장소, 정책 동적 관리
+- 장애/트러블슈팅은 실제 발생 시 별도 문서로 관리
 
-#### 핵심 기능
-- **메서드 시그니처 분석**: 파라미터명과 타입 매핑
-- **JSON 직렬화**: 복잡한 객체의 안전한 직렬화
-- **민감정보 마스킹**: 보안이 필요한 필드 자동 감지 및 마스킹
+---
 
-#### 파라미터 처리 과정
-```java
-public Map<String, Object> extractParameters(MethodSignature signature, Object[] args) {
-    Map<String, Object> parameters = new HashMap<>();
-    String[] paramNames = signature.getParameterNames();
-    
+이 문서는 TacoHub의 AOP 감사 로깅 시스템의 도입 동기, 구조와 원리, 커스텀 어노테이션/Aspect/Service 구조, 동작 순서, 실제 사용 예시 중심으로 명확히 설명합니다. 불필요한 일반론, 미확인 확장/문제 등은 축소하였으며, 실제 운영에 필요한 핵심 정보만을 제공합니다.
     for (int i = 0; i < args.length; i++) {
         String paramName = paramNames[i];
         Object paramValue = args[i];

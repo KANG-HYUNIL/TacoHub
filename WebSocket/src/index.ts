@@ -13,7 +13,7 @@
 
 import dotenv from 'dotenv';
 import { createServer } from './server';
-import { logger } from './utils/logger';
+import { applicationLogger } from './utils/logger';
 
 // 환경변수 로드 - .env 파일의 설정값들을 process.env에 주입
 dotenv.config();
@@ -36,10 +36,10 @@ async function startServer() {
         
         // 지정된 포트에서 서버 시작
         server.listen(PORT, () => {
-            logger.info(`WebSocket Server running on port ${PORT}`);
+            applicationLogger.info(`WebSocket Server running on port ${PORT}`);
         });
     } catch (error) {
-        logger.error('Failed to start server:', error);
+        applicationLogger.error('Failed to start server:', error);
         process.exit(1); // 서버 시작 실패 시 프로세스 종료
     }
 }

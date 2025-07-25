@@ -38,58 +38,59 @@ private String invitedEmail;
 
 ### 3. 부여될 역할
 ```java
-private String role;
-```
-- **목적**: 초대 수락 시 부여될 워크스페이스 역할
-- **값**: ADMIN, MEMBER, GUEST
-- **활용**: 초대 내용 확인, 권한 미리보기
+# InvitationResponse
 
-### 4. 초대 시간
-```java
-private LocalDateTime invitedAt;
-```
-- **목적**: 초대가 발송된 시점
-- **활용**: 초대 이력 관리, 정렬
-- **형식**: ISO 8601 형태의 로컬 날짜/시간
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Dto.NotionCopyDTO.Response</td></tr>
+  <tr><th>클래스 설명</th><td>워크스페이스 초대 발송 완료 응답을 위한 DTO(Data Transfer Object) 클래스.<br>사용자 초대 요청 처리 후 클라이언트에 초대 상태, 토큰 정보, 발송 결과 등을 전달한다.</td></tr>
+</table>
 
-### 5. 만료 시간
-```java
-private LocalDateTime expiresAt;
-```
-- **목적**: 초대 토큰의 만료 시점
-- **활용**: 유효성 확인, 남은 시간 표시
-- **계산**: 초대 시간 + 설정된 만료 기간
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th><th>예시/제약</th></tr>
+  <tr><td>invitationToken</td><td>String</td><td>초대 수락에 사용될 고유 토큰. URL-safe, 랜덤 값.</td><td>"eyJhbGciOiJIUzI1NiIsInR5cCI6..."</td></tr>
+  <tr><td>invitedEmail</td><td>String</td><td>초대 대상자의 이메일 주소. 유효한 이메일 형식.</td><td>"invitee@example.com"</td></tr>
+  <tr><td>role</td><td>String</td><td>초대 수락 시 부여될 워크스페이스 역할.</td><td>"ADMIN", "MEMBER", "GUEST"</td></tr>
+  <tr><td>invitedAt</td><td>LocalDateTime</td><td>초대가 발송된 시각. ISO-8601 포맷.</td><td>"2024-01-15T10:30:00"</td></tr>
+</table>
 
-### 6. 초대한 사용자
-```java
-private String invitedBy;
-```
-- **목적**: 초대를 발송한 사용자 식별
-- **활용**: 감사 추적, 초대 이력 관리
-- **형식**: 일반적으로 이메일 주소
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>InvitationResponse()</td><td>기본 생성자. Lombok 또는 명시적 생성자 사용 가능.</td></tr>
+  <tr><td>InvitationResponse(invitationToken, invitedEmail, role, invitedAt)</td><td>모든 필드를 초기화하는 생성자.</td></tr>
+</table>
 
-### 7. 초대 메시지
-```java
-private String message;
-```
-- **목적**: 초대 시 포함된 개인 메시지
-- **필수성**: 선택적 필드 (null 가능)
-- **활용**: 초대 이메일 내용, 맥락 제공
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>getter/setter</td>
+    <td>각 필드의 값을 조회/설정하는 메서드. Lombok @Data로 자동 생성.</td>
+    <td>각 필드별(String invitationToken, ...)</td>
+    <td>해당 필드 값</td>
+  </tr>
+</table>
 
-### 8. 이메일 발송 상태
-```java
-private boolean isEmailSent;
-```
-- **목적**: 초대 이메일 발송 성공 여부
-- **활용**: 발송 실패 시 재전송 필요성 판단
-- **오류 처리**: false인 경우 추가 조치 필요
+## 동작 흐름 (Lifecycle)
+1. 초대 발송 완료 시 InvitationResponse 객체가 생성된다.
+2. 각 필드에 값이 할당되어 클라이언트에 전달된다.
+3. 초대 링크 생성, 수락 시 검증 등에 활용된다.
 
-## JSON 예시
-
-### 성공적인 초대 발송
+## 활용 예시 (Usage)
+초대 발송 응답:
 ```json
 {
-  "invitationToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ",
+  "invitationToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6...",
+  "invitedEmail": "invitee@example.com",
+  "role": "MEMBER",
+  "invitedAt": "2024-01-15T10:30:00"
+}
+```
+
+## 예외 및 주의사항 (Exceptions & Notes)
+- invitationToken은 외부에 노출 시 보안에 주의.
+- invitedEmail은 반드시 유효한 이메일 형식이어야 함.
   "invitedEmail": "colleague@company.com",
   "role": "MEMBER",
   "invitedAt": "2025-07-09T14:30:00",

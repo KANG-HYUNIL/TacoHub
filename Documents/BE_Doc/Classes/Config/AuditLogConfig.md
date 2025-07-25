@@ -1,103 +1,60 @@
-# AuditLogConfig 클래스
-
-## 1. 개요
-
-`AuditLogConfig`는 TacoHub의 감사 로깅 시스템 구성을 담당하는 Spring Configuration 클래스입니다. 환경별로 다른 로깅 전략을 동적으로 선택하고, 비동기 처리를 위한 스레드 풀을 설정합니다.
-
-## 2. 클래스 정보
-
-- **패키지**: `com.example.TacoHub.Config`
-- **어노테이션**: `@Configuration`, `@EnableAsync`
-- **역할**: 감사 로깅 시스템 설정 및 서비스 선택
-
-## 3. 주요 기능
-
-### 3.1 동적 서비스 선택
-
-```java
-@Bean
-@Primary
-public AuditLogService auditLogService(FileAuditLogService fileAuditLogService,
-                                      S3AuditLogService s3AuditLogService,
-                                      MultiAuditLogService multiAuditLogService) {
-    switch (storageType.toLowerCase()) {
-        case "multi": 
-            return multiAuditLogService;    // CloudWatch + S3 + File
-        case "file": 
-            return fileAuditLogService;     // File만 저장
-        case "s3-archive": 
-            return s3AuditLogService;       // S3만 저장
-        default: 
-            return fileAuditLogService;     // 기본값
-    }
-}
-```
-
-### 3.2 비동기 스레드 풀 설정
-
-```java
-@Bean("auditLogExecutor")
-public Executor auditLogExecutor() {
-    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(2);        // 기본 스레드 수
-    executor.setMaxPoolSize(5);         // 최대 스레드 수
-    executor.setQueueCapacity(100);     // 큐 크기
-    executor.setThreadNamePrefix("AuditLog-");
-    executor.setWaitForTasksToCompleteOnShutdown(true);
-    executor.setAwaitTerminationSeconds(30);
-    executor.initialize();
-    return executor;
-}
-```
-
-## 4. 설정값
-
-### 4.1 환경변수 매핑
-
-| 설정 키 | 환경변수 | 기본값 | 설명 |
-|---------|----------|--------|------|
-| `audit.log.storage.type` | - | `file` | 저장 방식 선택 |
-
-### 4.2 저장 방식별 동작
-
-**file 모드**
-- 로컬 파일 시스템에만 저장
-- 개발 환경에 적합
-- 빠른 처리 속도
-
-**s3-archive 모드**
-- S3에만 저장 (압축 및 아카이빙)
-- 장기 보관 용도
-- 비용 효율적
-
-**multi 모드**
-- 파일 + CloudWatch + S3 복합 저장
-- 운영 환경 권장
-- 3중 백업 보장
-
-## 5. 의존성 관계
-
-```
-AuditLogConfig
-    ├─ FileAuditLogService (주입)
-    ├─ S3AuditLogService (주입)
-    ├─ MultiAuditLogService (주입)
-    └─ ThreadPoolTaskExecutor (생성)
-```
-
-## 6. 사용 예시
-
-### 6.1 application.yml 설정
-
-```yaml
-# 개발 환경
 audit:
-  log:
-    storage:
-      type: file
-
-# 운영 환경  
 audit:
+# AuditLogConfig
+
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Config</td></tr>
+  <tr><th>어노테이션</th><td>@Configuration, @EnableAsync</td></tr>
+  <tr><th>클래스 설명</th><td>TacoHub의 감사 로그 시스템 구성을 담당하는 Spring Configuration 클래스.<br>환경별로 로그 저장 전략을 동적으로 선택하며, 비동기 처리를 위한 스레드 풀을 설정한다.</td></tr>
+</table>
+
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th></tr>
+  <tr><td>storageType</td><td>String</td><td>감사 로그 저장 방식 선택(multi, file, s3-archive 등). application.yml에서 주입받음.</td></tr>
+</table>
+
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>AuditLogConfig()</td><td>기본 생성자. Spring이 자동으로 빈을 생성할 때 사용.</td></tr>
+</table>
+
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>auditLogService(fileAuditLogService, s3AuditLogService, multiAuditLogService)</td>
+    <td>환경 설정(storageType)에 따라 적합한 감사 로그 서비스(Multi, File, S3)를 반환.<br>CloudWatch, S3, 파일 저장 전략을 동적으로 선택한다.</td>
+    <td>
+      <ul>
+        <li>fileAuditLogService: File 기반 감사 로그 서비스</li>
+        <li>s3AuditLogService: S3 기반 감사 로그 서비스</li>
+        <li>multiAuditLogService: 복합(Multi) 감사 로그 서비스</li>
+      </ul>
+    </td>
+    <td>AuditLogService<br>(com.example.TacoHub.Logging.AuditLogService)</td>
+  </tr>
+  <tr>
+    <td>auditLogExecutor()</td>
+    <td>감사 로그 비동기 처리를 위한 스레드 풀(Executor) Bean을 생성.<br>core/max pool size, queue capacity, thread prefix 등 세부 설정 포함.</td>
+    <td>없음</td>
+    <td>Executor<br>(java.util.concurrent.Executor)</td>
+  </tr>
+</table>
+
+## 동작 흐름 (Lifecycle)
+1. application.yml의 storageType 설정값을 읽어 필드에 주입한다.
+2. `auditLogService(...)`가 호출되어 환경에 맞는 감사 로그 서비스 Bean을 반환한다.
+3. `auditLogExecutor()`가 호출되어 비동기 로그 처리를 위한 스레드 풀을 생성한다.
+4. 감사 로그 기록 시 비동기 스레드 풀을 통해 처리된다.
+
+## 활용 예시 (Usage)
+- CloudWatch+S3+File 동시 저장, 대용량 로그의 안정적 처리, 운영/개발 환경별 저장 전략 분리 등.
+
+## 예외 및 주의사항 (Exceptions & Notes)
+- storageType 설정값이 잘못되면 기본값(file)로 동작한다.
+- 비동기 처리 시 스레드 풀 설정(core/max/queue 등)을 환경에 맞게 조정 필요.
   log:
     storage:
       type: multi

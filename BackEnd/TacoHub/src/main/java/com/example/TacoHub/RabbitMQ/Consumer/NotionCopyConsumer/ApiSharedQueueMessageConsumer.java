@@ -1,11 +1,11 @@
-package com.example.TacoHub.Consumer.NotionCopyConsumer;
+package com.example.TacoHub.RabbitMQ.Consumer.NotionCopyConsumer;
 
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.example.TacoHub.Consumer.Handler.BlockMessageHandler;
 import com.example.TacoHub.Message.BaseMessage;
+import com.example.TacoHub.RabbitMQ.Consumer.Handler.BlockMessageHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

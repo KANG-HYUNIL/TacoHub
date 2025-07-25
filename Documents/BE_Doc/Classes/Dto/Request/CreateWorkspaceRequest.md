@@ -1,51 +1,55 @@
 # CreateWorkspaceRequest
 
-**패키지:** com.example.TacoHub.Dto.NotionCopyDTO.Request
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Dto.NotionCopyDTO.Request</td></tr>
+  <tr><th>클래스 설명</th><td>워크스페이스 생성 요청을 위한 DTO(Data Transfer Object) 클래스.<br>클라이언트가 새로운 워크스페이스를 생성할 때 필요한 정보를 서버로 전송하기 위한 데이터 구조를 제공한다.</td></tr>
+</table>
 
-## 개요
-워크스페이스 생성 요청을 위한 DTO(Data Transfer Object) 클래스입니다. 클라이언트가 새로운 워크스페이스를 생성할 때 필요한 정보를 서버로 전송하기 위한 데이터 구조를 제공합니다.
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th><th>예시/제약</th></tr>
+  <tr><td>name</td><td>String</td><td>생성할 워크스페이스의 이름. 필수 입력, 최대 100자.</td><td>"프로젝트 Alpha 워크스페이스"</td></tr>
+</table>
 
-## 클래스 구조
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>CreateWorkspaceRequest()</td><td>기본 생성자. Lombok 또는 명시적 생성자 사용 가능.</td></tr>
+  <tr><td>CreateWorkspaceRequest(name)</td><td>모든 필드를 초기화하는 생성자.</td></tr>
+</table>
 
-### 어노테이션
-- `@Data`: Lombok을 통한 getter/setter/toString/equals/hashCode 자동 생성
-- `@Builder`: Lombok 빌더 패턴 지원
-- `@NoArgsConstructor`, `@AllArgsConstructor`: 기본/전체 생성자 자동 생성
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>getter/setter</td>
+    <td>각 필드의 값을 조회/설정하는 메서드. Lombok @Data로 자동 생성.</td>
+    <td>String name</td>
+    <td>해당 필드 값</td>
+  </tr>
+</table>
 
-### 특징
-- **유효성 검증**: Jakarta Validation 활용한 입력값 검증
-- **불변성**: DTO는 데이터 전송 목적으로 설계
-- **JSON 지원**: 자동 직렬화/역직렬화
+## 동작 흐름 (Lifecycle)
+1. 워크스페이스 생성 요청 시 CreateWorkspaceRequest 객체가 생성된다.
+2. name 필드에 값이 할당되어 서버로 전송된다.
+3. 서버에서 유효성 검증 후 워크스페이스가 생성된다.
 
-## 필드 구조
-
-### 1. 워크스페이스 이름
-```java
-@NotBlank(message = "워크스페이스 이름은 필수입니다")
-@Size(max = 100, message = "워크스페이스 이름은 100자를 초과할 수 없습니다")
-private String name;
-```
-- **목적**: 생성할 워크스페이스의 이름
-- **제약사항**: 
-  - 필수 입력 (공백 불허)
-  - 최대 100자
-- **활용**: 워크스페이스 식별자, 네비게이션 표시
-
-## JSON 예시
-
-### 요청 예시
+## 활용 예시 (Usage)
+워크스페이스 생성 요청:
 ```json
 {
   "name": "프로젝트 Alpha 워크스페이스"
 }
 ```
-
-### 최소 요청
+최소 요청:
 ```json
 {
   "name": "개인 워크스페이스"
 }
 ```
+
+## 예외 및 주의사항 (Exceptions & Notes)
+- name 필드는 반드시 입력되어야 하며, 공백 및 100자 초과 불가.
 
 ### 유효성 검증 실패 예시
 ```json

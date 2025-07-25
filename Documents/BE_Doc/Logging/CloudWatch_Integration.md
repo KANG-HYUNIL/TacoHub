@@ -369,103 +369,54 @@ aws cloudwatch put-metric-alarm \
   --alarm-actions arn:aws:sns:ap-northeast-2:123456789012:tacohub-alerts
 ```
 
-## 10. 구조화된 로깅 (MDC 활용)
 
-### 10.1 MDC(Mapped Diagnostic Context) 활용
+## 10. 환경변수 및 Parameter Store 기반 운영 전략
 
-```java
-@Component
-public class MDCFilter implements Filter {
-    
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) 
-            throws IOException, ServletException {
-        
-        try {
-            // 요청별 고유 ID 설정
-            String traceId = UUID.randomUUID().toString();
-            MDC.put("traceId", traceId);
-            
-            // 사용자 정보 설정 (인증 후)
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated()) {
-                MDC.put("userId", auth.getName());
-            }
-            
-            chain.doFilter(request, response);
-        } finally {
-            MDC.clear();  // 중요: 스레드 풀 재사용을 위해 반드시 정리
-        }
-    }
-}
-```
+### 10.1 환경변수/Parameter Store 연동
 
-### 10.2 MDC가 포함된 로그 패턴
+TacoHub의 CloudWatch 연동은 logback-spring.xml에서 환경변수와 AWS Parameter Store 값을 동적으로 참조하여 운영 환경별로 로그 그룹, 배치 크기, flush 시간 등을 관리합니다. 실제 운영에서는 Parameter Store를 통해 로그 그룹명, 배치 설정, 인증 정보 등 주요 값을 안전하게 관리합니다.
 
+#### logback-spring.xml 예시
 ```xml
-<encoder>
-    <pattern>%d{ISO8601} [%thread] %-5level [%X{traceId}] [%X{userId}] %logger{36} - %msg%n</pattern>
-</encoder>
+<logGroupName>${AWS_CLOUDWATCH_LOG_GROUP_PROD:/aws/ec2/tacohub-prod}</logGroupName>
+<maxBatchLogEvents>${AWS_CLOUDWATCH_BATCH_SIZE_PROD:500}</maxBatchLogEvents>
+<maxFlushTimeMillis>${AWS_CLOUDWATCH_FLUSH_TIME_PROD:30000}</maxFlushTimeMillis>
 ```
 
-**출력 예시:**
-```
-2024-01-15T14:30:22.123+09:00 [http-nio-8080-exec-1] ERROR [550e8400-e29b-41d4] [user123] c.e.TacoHub.Service.UserService - 사용자 생성 실패
-```
+#### Parameter Store 예시
+| Parameter Name | Value (예시) |
+|----------------|-----------------------------|
+| /tacohub/log/group/prod | /aws/ec2/tacohub-prod |
+| /tacohub/log/batch/prod | 500                   |
+| /tacohub/log/flush/prod | 30000                 |
 
-## 11. 트러블슈팅
+### 10.2 운영 전략 요약
+- 운영 환경별로 Parameter Store에서 값을 읽어 logback 설정에 반영
+- 보안 및 운영 편의성 향상 (코드/설정 분리)
+- 환경별 로그 그룹, 배치, flush, 인증 정보 등 모두 Parameter Store에서 관리
 
-### 11.1 일반적인 문제
+## 11. 변경된 로깅 전략 요약
 
-#### 문제 1: CloudWatch에 로그가 나타나지 않음
-**원인 및 해결책:**
-- AWS 자격증명 확인: `aws sts get-caller-identity`
-- 로그 그룹 존재 여부: `aws logs describe-log-groups`
-- IAM 권한 확인: logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents
-- 로그 레벨 및 필터 설정 재확인
+### 11.1 logback 기반 CloudWatch 연동 구조
+- 모든 시스템 로그는 SLF4J → Logback → File/CloudWatch Appender 경로로 분리 저장
+- 운영 환경에서는 CloudWatch Appender가 모든 INFO 이상 로그를 실시간 전송
+- Test 환경에서는 ThresholdFilter로 WARN/ERROR만 전송해 비용 최적화
+- 환경변수/Parameter Store로 운영 환경별 설정 동적 관리
 
-#### 문제 2: 로그 전송 지연
-**원인 및 해결책:**
-- maxFlushTimeMillis 값 확인 (너무 크면 지연 발생)
-- maxBatchLogEvents 값 조정
-- AsyncAppender 사용 고려
+### 11.2 실제 사용 예시
+...existing code...
 
-#### 문제 3: CloudWatch 비용 과다
-**원인 및 해결책:**
-- 불필요한 DEBUG 로그 제거
-- Test 환경에서 ThresholdFilter 적용
-- 로그 보존 기간 단축
+### 11.3 운영 전략 및 주의사항
+- 운영 환경 변경 시 Parameter Store 값만 변경하면 무중단 설정 변경 가능
+- 로그 그룹/스트림은 사전 생성 필요, IAM 권한 필수
+- logback 설정 변경 시 반드시 운영 환경별 테스트 필요
 
-### 11.2 디버깅 방법
+## 12. 향후 확장 및 개선 방향
 
-#### Logback 디버그 모드 활성화
-```xml
-<configuration debug="true">
-    <!-- 디버그 정보가 콘솔에 출력됨 -->
-</configuration>
-```
+- S3 장기 보관, ElasticSearch/Kafka 연동 등 추가 저장소 확장 가능
+- CloudWatch 비용 최적화: 필터링, 보존 기간, VPC 엔드포인트 활용
+- 운영 중 장애/트러블슈팅은 실제 발생 시 별도 문서로 관리
 
-#### AWS SDK 로그 활성화
-```yaml
-# application.yml
-logging:
-  level:
-    com.amazonaws: DEBUG
-    ca.pjer.logback: DEBUG
-```
+---
 
-## 12. 성능 및 비용 최적화
-
-### 12.1 성능 최적화 전략
-
-- **비동기 처리**: AsyncAppender로 메인 스레드 블로킹 방지
-- **배치 전송**: 개별 API 호출 대신 배치로 전송하여 네트워크 오버헤드 감소
-- **압축**: 로그 데이터 압축 전송 (CloudWatch 자동 지원)
-
-### 12.2 비용 최적화 전략
-
-- **환경별 필터링**: Test에서는 ERROR/WARN만 전송
-- **로그 보존 기간**: CloudWatch 30일, 장기 보관은 S3 활용
-- **VPC 엔드포인트**: 데이터 전송 비용 절약
-
-이 SLF4J/Logback CloudWatch 연동 시스템을 통해 TacoHub는 실시간 시스템 모니터링과 효과적인 운영 관리를 구현할 수 있습니다.
+이 문서는 TacoHub의 CloudWatch 연동 로깅 시스템의 실제 운영 구조와 전략, 환경변수/Parameter Store 기반 설정 관리, logback 기반 변경 사항을 명확히 설명합니다. 미확인 문제, MDC 등 불필요한 내용은 제거하였으며, 실제 운영에 필요한 핵심 정보만을 제공합니다.

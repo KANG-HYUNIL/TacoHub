@@ -1,4 +1,4 @@
-package com.example.TacoHub.Consumer.Handler;
+package com.example.TacoHub.RabbitMQ.Consumer.Handler;
 
 import com.example.TacoHub.Message.NotionCopyMessage.BlockMessage;
 import com.example.TacoHub.Message.BaseMessage;

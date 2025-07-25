@@ -48,58 +48,81 @@ private String blockType;
   - `image`: 이미지 블록
   - `table`: 테이블 (확장 예정)
   - 기타 확장 가능한 구조
+# BlockDTO
 
-```java
-private String content;
-```
-- **목적**: 블록의 실제 텍스트 내용
-- **적용 대상**: 텍스트 기반 블록 (paragraph, heading, list 등)
-- **이미지/테이블**: content는 빈 문자열, metadata에 실제 데이터
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Dto.NotionCopyDTO</td></tr>
+  <tr><th>클래스 설명</th><td>블록 정보 전송을 위한 DTO(Data Transfer Object) 클래스.<br>Notion과 같은 블록 기반 에디터의 블록 데이터를 클라이언트와 서버 간에 주고받기 위한 표준화된 데이터 구조를 제공한다.</td></tr>
+</table>
 
-### 4. 블록 속성
-```java
-private Map<String, Object> properties;
-```
-- **목적**: 블록별 스타일 및 속성 정보
-- **타입**: 유연한 키-값 맵 구조
-- **예시 속성**:
-  ```json
-  {
-    "color": "red",
-    "bold": true,
-    "italic": false,
-    "align": "center",
-    "fontSize": "14px"
-  }
-  ```
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th><th>예시/제약</th></tr>
+  <tr><td>id</td><td>UUID</td><td>블록의 고유 식별자. 서버에서 자동 생성.</td><td>"b1a2c3d4-..."</td></tr>
+  <tr><td>pageId</td><td>UUID</td><td>블록이 속한 페이지의 ID. 필수.</td><td>"p1a2c3d4-..."</td></tr>
+  <tr><td>blockType</td><td>String</td><td>블록의 종류(paragraph, heading_1, bulleted_list 등).</td><td>"paragraph", "heading_1", "image" 등</td></tr>
+  <tr><td>content</td><td>String</td><td>블록의 실제 내용(텍스트, 이미지 URL 등).</td><td>"회의록 내용", "https://.../image.png"</td></tr>
+  <tr><td>orderIndex</td><td>Integer</td><td>페이지 내 블록의 순서 인덱스.</td><td>0, 1, 2...</td></tr>
+  <tr><td>createdAt</td><td>LocalDateTime</td><td>블록 생성 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+  <tr><td>updatedAt</td><td>LocalDateTime</td><td>블록 수정 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+</table>
 
-### 5. 계층 구조
-```java
-private UUID parentId;
-```
-- **목적**: 부모 블록 ID (중첩 블록 지원)
-- **null 의미**: 페이지의 최상위 블록
-- **활용**: 들여쓰기, 중첩 리스트, 블록 그룹핑
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>BlockDTO()</td><td>기본 생성자. Lombok 또는 명시적 생성자 사용 가능.</td></tr>
+  <tr><td>BlockDTO(id, pageId, blockType, content, orderIndex, createdAt, updatedAt)</td><td>모든 필드를 초기화하는 생성자.</td></tr>
+</table>
 
-```java
-private List<UUID> childrenIds;
-```
-- **목적**: 자식 블록들의 ID 목록
-- **정렬**: orderIndex 순서로 정렬된 상태
-- **성능**: 클라이언트에서 계층 구조 빠른 렌더링
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>getter/setter</td>
+    <td>각 필드의 값을 조회/설정하는 메서드. Lombok @Data로 자동 생성.</td>
+    <td>각 필드별(UUID id, ...)</td>
+    <td>해당 필드 값</td>
+  </tr>
+</table>
 
-```java
-private Boolean hasChildren;
-```
-- **목적**: 자식 블록 존재 여부
-- **UI 활용**: 확장/축소 버튼 표시 여부
-- **성능**: 별도 조회 없이 자식 존재 여부 판단
+## 상속 관계 (Inheritance)
+<table>
+  <tr><th>부모 클래스</th><th>설명</th></tr>
+  <tr><td>BaseDateDTO</td><td>생성일시(createdAt), 수정일시(updatedAt) 정보 포함.</td></tr>
+</table>
 
-### 6. 순서 관리
-```java
-private Integer orderIndex;
+## 동작 흐름 (Lifecycle)
+1. 클라이언트/서버 간 블록 데이터 전송 시 BlockDTO 객체가 생성된다.
+2. 각 필드에 값이 할당되어 블록 정보가 전달된다.
+3. Entity 변환, DB 저장, 비즈니스 로직 처리 등에 활용된다.
+
+## 활용 예시 (Usage)
+블록 생성 요청:
+```json
+{
+  "pageId": "p1a2c3d4-...",
+  "blockType": "paragraph",
+  "content": "회의록 내용",
+  "orderIndex": 0
+}
 ```
-- **목적**: 같은 부모 하위에서의 블록 순서
+블록 조회 응답:
+```json
+{
+  "id": "b1a2c3d4-...",
+  "pageId": "p1a2c3d4-...",
+  "blockType": "heading_1",
+  "content": "회의 제목",
+  "orderIndex": 1,
+  "createdAt": "2024-01-15T10:30:00",
+  "updatedAt": "2024-01-15T10:30:00"
+}
+```
+
+## 예외 및 주의사항 (Exceptions & Notes)
+- pageId, blockType 등 필수값 누락 시 API 요청이 거부될 수 있음.
+- content 필드는 블록 타입에 따라 형식이 달라질 수 있음.
+- createdAt, updatedAt은 서버에서 자동 관리됨.
 - **시작값**: 0
 - **증가**: 1씩 증가
 - **활용**: 드래그 앤 드롭으로 블록 재배열

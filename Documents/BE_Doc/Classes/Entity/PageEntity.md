@@ -23,55 +23,72 @@ Notion 스타일의 페이지를 나타내는 JPA 엔티티 클래스입니다. 
 @Id
 @GeneratedValue(generator = "UUID", strategy = GenerationType.UUID)
 @Column(name = "id", updatable = false, nullable = false)
-private UUID id;
-```
-- **목적**: 페이지의 고유 식별자
-- **타입**: UUID (글로벌 고유성 보장)
-- **제약**: 수정 불가, null 불허
+# PageEntity
 
-### 2. 페이지 메타데이터
-```java
-@Column(name = "title")
-private String title;
-```
-- **목적**: 페이지 제목
-- **타입**: String
-- **특징**: 사용자가 편집 가능한 페이지 이름
+<table>
+  <tr><th>패키지</th><td>com.example.TacoHub.Entity.NotionCopyEntity</td></tr>
+  <tr><th>클래스 설명</th><td>Notion 스타일의 페이지를 나타내는 JPA 엔티티(Entity) 클래스.<br>워크스페이스 내 계층형 페이지 구조를 지원하며, 각 페이지는 연결된 블록 시스템을 통해 콘텐츠를 관리한다.</td></tr>
+</table>
 
-```java
-@Column(name = "path")
-private String path;
-```
-- **목적**: 페이지 경로 (URL 또는 계층 경로)
-- **타입**: String
-- **활용**: 페이지 네비게이션, 브레드크럼 등
+## 필드 상세 (Fields)
+<table>
+  <tr><th>이름</th><th>타입</th><th>설명</th><th>제약/예시</th></tr>
+  <tr><td>id</td><td>UUID</td><td>페이지의 고유 식별자. 글로벌 고유성 보장.</td><td>PRIMARY KEY, NOT NULL</td></tr>
+  <tr><td>title</td><td>String</td><td>페이지 제목. 사용자가 편집 가능.</td><td>"프로젝트 계획서"</td></tr>
+  <tr><td>path</td><td>String</td><td>페이지 경로(URL 또는 계층 경로).</td><td>"/workspace/project/design/mockup"</td></tr>
+  <tr><td>orderIndex</td><td>Integer</td><td>같은 부모 하위에서의 페이지 순서.</td><td>0, 1, 2...</td></tr>
+  <tr><td>workspaceId</td><td>UUID</td><td>연동된 워크스페이스의 ID.</td><td>"w1a2c3d4-..."</td></tr>
+  <tr><td>parentId</td><td>UUID</td><td>상위 페이지의 ID(계층 구조).</td><td>"p1a2c3d4-..."</td></tr>
+  <tr><td>createdAt</td><td>LocalDateTime</td><td>페이지 생성 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+  <tr><td>updatedAt</td><td>LocalDateTime</td><td>페이지 수정 일시.</td><td>"2024-01-15T10:30:00"</td></tr>
+</table>
 
-### 3. 페이지 메타데이터
-```java
-@Column(name = "path")
-private String path;
-```
-- **목적**: 페이지 경로 (URL 또는 계층 경로)
-- **타입**: String
-- **활용**: 페이지 네비게이션, 브레드크럼 등
+## 생성자 (Constructors)
+<table>
+  <tr><th>생성자</th><th>설명</th></tr>
+  <tr><td>PageEntity()</td><td>기본 생성자. JPA 및 Lombok에서 자동 생성.</td></tr>
+  <tr><td>PageEntity(id, title, path, orderIndex, workspaceId, parentId, createdAt, updatedAt)</td><td>모든 필드를 초기화하는 생성자.</td></tr>
+</table>
 
-### 4. 워크스페이스 연관관계
-```java
-@ManyToOne(fetch = FetchType.LAZY)
-@JoinColumn(name = "workspace_id", nullable = false)
-private WorkSpaceEntity workspace;
-```
-- **관계**: 다대일 (Many-to-One)
-- **지연 로딩**: 성능 최적화를 위한 LAZY 로딩
-- **제약**: null 불허 (모든 페이지는 워크스페이스에 소속)
-- **외래키**: workspace_id
+## 메서드 상세 (Methods)
+<table>
+  <tr><th>메서드</th><th>설명</th><th>매개변수</th><th>반환값</th></tr>
+  <tr>
+    <td>getter/setter</td>
+    <td>각 필드의 값을 조회/설정하는 메서드. Lombok @Getter/@Setter로 자동 생성.</td>
+    <td>각 필드별(UUID id, ...)</td>
+    <td>해당 필드 값</td>
+  </tr>
+</table>
 
-### 5. 페이지 계층 구조
-```java
-@ManyToOne(fetch = FetchType.LAZY)
-@JoinColumn(name = "parent_page_id")
-private PageEntity parentPage;
+## 상속 관계 (Inheritance)
+<table>
+  <tr><th>부모 클래스</th><th>설명</th></tr>
+  <tr><td>BaseDateEntity</td><td>생성일시(createdAt), 수정일시(updatedAt) 자동 관리.</td></tr>
+</table>
+
+## 동작 흐름 (Lifecycle)
+1. 페이지 생성/조회/수정 등에서 PageEntity 객체가 생성된다.
+2. 각 필드에 값이 할당되어 DB에 저장된다.
+3. Entity-DTO 변환, 비즈니스 로직 처리 등에 활용된다.
+
+## DB 테이블 예시 (Schema)
+```sql
+CREATE TABLE page (
+    id UUID PRIMARY KEY,
+    title VARCHAR(255),
+    path VARCHAR(255),
+    order_index INT,
+    workspace_id UUID,
+    parent_id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
 ```
+
+## 예외 및 주의사항 (Exceptions & Notes)
+- id, title, path 등 필수값 누락 시 DB 저장이 거부될 수 있음.
+- orderIndex는 같은 부모 하위에서 고유해야 함.
 - **관계**: 자기 참조 다대일 관계
 - **목적**: 부모 페이지 참조 (계층형 구조 지원)
 - **null 허용**: 루트 페이지의 경우 null

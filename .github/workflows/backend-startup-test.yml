@@ -67,7 +67,7 @@ jobs:
         
         # Docker Compose를 백그라운드에서 실행 (-d 옵션)
         # 모든 서비스(MySQL, MongoDB, Redis, RabbitMQ, LocalStack) 시작
-        docker-compose -f compose.yaml up -d
+        docker compose -f compose.yaml up -d
         
         # 실행된 컨테이너 상태 확인 (디버깅용)
         echo "🔍 실행 중인 컨테이너 확인:"
@@ -80,19 +80,19 @@ jobs:
         
         echo "⏱️ MySQL 서비스 준비 대기 중..."
         # MySQL이 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
         
         echo "⏱️ MongoDB 서비스 준비 대기 중..."
         # MongoDB가 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
         
         echo "⏱️ Redis 서비스 준비 대기 중..."
         # Redis가 준비될 때까지 최대 30초 대기
-        timeout 30s bash -c 'until docker-compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+        timeout 30s bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
         
         echo "⏱️ RabbitMQ 서비스 준비 대기 중..."
         # RabbitMQ가 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
         
         echo "✅ 모든 서비스가 준비되었습니다!"
 
@@ -180,7 +180,7 @@ jobs:
         
         echo "🧹 Docker 컨테이너 정리 중..."
         # 모든 컨테이너 중지 및 제거, 볼륨도 삭제
-        docker-compose -f compose.yaml down -v
+        docker compose -f compose.yaml down -v
         
         # 사용하지 않는 Docker 이미지 정리
         docker system prune -f

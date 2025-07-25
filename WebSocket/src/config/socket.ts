@@ -14,7 +14,7 @@
  */
 
 import { Server as SocketIOServer } from 'socket.io';
-import { logger } from '../utils/logger';
+import { applicationLogger } from '../utils/logger';
 import { setupConnectionHandler } from '../handlers/connection.handler';
 
 /**
@@ -30,7 +30,7 @@ import { setupConnectionHandler } from '../handlers/connection.handler';
  * - 로깅 시스템 연동
  */
 export function setupSocketIO(io: SocketIOServer) {
-    logger.info('Setting up Socket.IO...');
+    applicationLogger.info('Setting up Socket.IO...');
     
     /**
      * 연결 핸들러 설정
@@ -38,6 +38,6 @@ export function setupSocketIO(io: SocketIOServer) {
      * 인증, 워크스페이스 입장, 페이지 편집 등의 모든 이벤트 처리가 이곳에서 시작됩니다.
      */
     setupConnectionHandler(io);
-    
-    logger.info('Socket.IO setup completed');
+
+    applicationLogger.info('Socket.IO setup completed');
 }

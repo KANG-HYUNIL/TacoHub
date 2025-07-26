@@ -128,7 +128,7 @@ jobs:
           -XX:+UnlockExperimentalVMOptions \
           -Xmx2g \
           -Xms1g \
-          build/libs/*.jar > app.log 2>&1 &
+          build/libs/*-SNAPSHOT.jar > app.log 2>&1 &
         
         # 프로세스 ID 저장 (나중에 종료하기 위해)
         APP_PID=$!
@@ -139,7 +139,7 @@ jobs:
         # 서버가 시작될 때까지 대기 (최대 120초)
         echo "⏳ 서버 시작 대기 중..."
         timeout 120s bash -c '
-          until curl -f http://localhost:5000/actuator/health > /dev/null 2>&1; do
+          until curl -f http://localhost:5000/api/actuator/health > /dev/null 2>&1; do
             echo "⏱️ 서버 응답 대기 중... ($(date))"
             sleep 5
           done

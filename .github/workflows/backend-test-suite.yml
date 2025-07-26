@@ -106,7 +106,7 @@ jobs:
         
         echo "🐳 테스트용 서비스 시작 중..."
         # 테스트에 필요한 서비스들만 시작 (성능 최적화)
-        docker-compose -f compose.yaml up -d mysql mongodb redis rabbitmq
+        docker compose -f compose.yaml up -d mysql mongodb redis rabbitmq
         
         # 실행된 컨테이너 확인
         echo "🔍 실행 중인 테스트 서비스:"
@@ -121,19 +121,19 @@ jobs:
         
         # MySQL 준비 대기
         echo "MySQL 대기 중..."
-        timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
         
         # MongoDB 준비 대기
         echo "MongoDB 대기 중..."
-        timeout 60s bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
         
         # Redis 준비 대기
         echo "Redis 대기 중..."
-        timeout 30s bash -c 'until docker-compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+        timeout 30s bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
         
         # RabbitMQ 준비 대기
         echo "RabbitMQ 대기 중..."
-        timeout 60s bash -c 'until docker-compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
         
         echo "✅ 모든 테스트 서비스가 준비되었습니다!"
 
@@ -275,7 +275,7 @@ jobs:
         echo "🧹 테스트 환경 정리 중..."
         
         # Docker 컨테이너 정리
-        docker-compose -f compose.yaml down -v
+        docker compose -f compose.yaml down -v
         
         # 사용하지 않는 Docker 리소스 정리
         docker system prune -f

@@ -9,6 +9,8 @@ import java.util.UUID;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceUserConverter;
+import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO;
 import com.example.TacoHub.Entity.AccountEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceUserEntity;
@@ -149,6 +151,51 @@ public class WorkSpaceUserService extends BaseService {
             handleAndThrowWorkSpaceUserException(methodName, e);
             return null; // 실제로는 도달하지 않음
             
+        }
+    }
+
+
+    /**
+     * userEmailId와 workspaceId로 WorkSpaceUserDTO를 가져오는 메서드
+     * @param userEmailId
+     * @param workspaceId
+     * @return WorkSpaceUserDTO
+     */
+    public WorkSpaceUserDTO getWorkSpaceUserDTO(String userEmailId, UUID workspaceId)
+    {
+        String methodName = "getWorkSpaceUserDTO";
+
+        try 
+        {
+            Optional<WorkSpaceUserEntity> optionalEntity = getWorkSpaceUserEntity(userEmailId, workspaceId);
+            if (optionalEntity.isEmpty()) {
+                log.warn("[{}] 사용자-워크스페이스 관계가 존재하지 않습니다: userEmailId={}, workspaceId={}", 
+                        methodName, userEmailId, workspaceId);
+                throw new WorkSpaceUserNotFoundException("사용자-워크스페이스 관계가 존재하지 않습니다");
+            }
+
+            return WorkSpaceUserConverter.toDTO(optionalEntity.get());
+
+        } catch (WorkSpaceUserNotFoundException e)
+        {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } 
+        catch (WorkSpaceUserOperationException e)
+        {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } 
+        catch (BusinessException e)
+        {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } 
+        catch (Exception e)
+        {
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
         }
     }
 
@@ -720,6 +767,8 @@ public class WorkSpaceUserService extends BaseService {
             return false; // 실제로는 도달하지 않음
         }
     }
+
+
 
 
     /**

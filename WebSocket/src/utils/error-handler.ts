@@ -2,6 +2,11 @@ import { applicationLogger } from './logger';
 import { BusinessError } from '../types/error/BusinessError';
 import { ServerError } from '../types/error/ServerError';
 import { RabbitMQError } from '../types/error/RabbitMQError';
+import { PresenceError } from '../types/error/PresenceError';
+import { PageEditError } from '../types/error/PageEditError';
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import { SocketErrorPayload } from '../types/socket-events.types';
+import { SOCKET_EVENTS } from '../constants/socket-events.constants';
 
 /**
  * 에러 핸들러 유틸리티
@@ -52,6 +57,18 @@ export function handleError(error: unknown, context?: string): never {
         throw error;
     }
 
+    // PresenceError 처리
+    if (error instanceof PresenceError) {
+        applicationLogger.error(`[Presence] ${context ? context + ': ' : ''}${error.message}`);
+        throw error;
+    }
+
+    // PageError 처리
+    if (error instanceof PageEditError) {
+        applicationLogger.error(`[Page] ${context ? context + ': ' : ''}${error.message}`);
+        throw error;
+    }
+
     // 일반 Error 처리
     if (error instanceof Error) {
         applicationLogger.error(`[Unknown] ${context ? context + ': ' : ''}${error.message}`);
@@ -61,4 +78,37 @@ export function handleError(error: unknown, context?: string): never {
     // 기타 타입의 에러 처리
     applicationLogger.error(`[Unknown] ${context ? context + ': ' : ''}${String(error)}`);
     throw new Error(String(error));
+}
+
+
+
+/**
+ * Socket.IO 에러 핸들러
+ * 소켓 통신 중 발생하는 에러를 처리하고, 클라이언트에게
+ * 에러 메시지를 전송합니다.
+ * @param {Socket} socket - 소켓 인스턴스
+ * @param {SocketErrorPayload} error - 에러 정보
+ * @description 
+ * 이 함수는 소켓 통신 중 발생하는 에러를 클라이언트에게
+ * 전송합니다. 에러 정보는 `SocketErrorPayload` 타입을 따르며,
+ * 클라이언트는 이 정보를 통해 에러를 처리할 수 있습니다.
+ */
+
+export function emitSocketError(socket : Socket, error : SocketErrorPayload)
+{
+    applicationLogger.error(`Socket Error for ${socket.id}:`, error);
+
+    socket.emit(SOCKET_EVENTS.ERROR,
+        {
+            success : false,
+            socketId: socket.id,
+            timestamp: new Date().toISOString(),
+            error: {
+                code: error.code || 'SOCKET_ERROR',
+                message: error.message || 'An unknown socket error occurred',
+                details: error.details || {}, // 추가 정보 (디버깅용)
+            } satisfies SocketErrorPayload
+        }
+    )
+
 }

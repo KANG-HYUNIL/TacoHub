@@ -7,6 +7,7 @@ import com.example.TacoHub.Dto.NotionCopyDTO.Request.UpdateUserRoleRequest;
 import com.example.TacoHub.Dto.NotionCopyDTO.Request.RemoveUserRequest;
 import com.example.TacoHub.Dto.NotionCopyDTO.Response.ApiResponse;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
+import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
 import com.example.TacoHub.Service.NotionCopyService.WorkSpaceService;
@@ -272,6 +273,29 @@ public class WorkspaceController {
                 "대기 중인 초대 목록 조회가 완료되었습니다.", 
                 "대기 중인 초대 목록입니다."));
     }
+
+
+
+    /**
+         * 워크스페이스 내 사용자 역할 조회
+         * @param workspaceId 워크스페이스 ID
+         * @param userId 사용자 ID
+         * @return 역할 문자열
+         */
+        @GetMapping("/{workspaceId}/users/{userId}/role")
+        public ResponseEntity<ApiResponse<WorkSpaceUserDTO>> getUserRoleInWorkspace(
+                @PathVariable UUID workspaceId,
+                @PathVariable String userId) {
+                log.info("워크스페이스 내 사용자 역할 조회 요청: workspaceId={}, userId={}", workspaceId, userId);
+
+                // WorkSpaceUserService에서 역할 조회
+                WorkSpaceUserDTO role = workSpaceUserService.getWorkSpaceUserDTO(userId, workspaceId);
+                if (role == null) {
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("해당 사용자의 역할을 찾을 수 없습니다."));
+                }
+                return ResponseEntity.ok(ApiResponse.success("사용자 역할 조회 성공", role));
+        }
 
     // ===== 사용자 워크스페이스 관리 API =====
 

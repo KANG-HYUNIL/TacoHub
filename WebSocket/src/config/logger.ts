@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Winston 로깅 시스템 설정
  * 
@@ -309,5 +310,80 @@ export function AuditLogDecorator(eventName: string) {
         };
     };
 }
+
+
+/**
+ * Audit Logging 고차 함수 래퍼
+ * - 데코레이터 없이 함수형 코드에 감사 로그 AOP 적용 가능
+ * @param eventName 감사 이벤트명
+ * @param fn 래핑할 async 함수
+ * @returns 감사 로그가 적용된 async 함수
+ */
+export function withAuditLog<T extends (...args: any[]) => Promise<any>>(
+  eventName: string,
+  fn: T
+): T {
+    return (async function(this: any, ...args: any[]) {
+
+        // 감사 로그 정보 초기화
+        const start = Date.now();
+        let auditLog: AuditLog = {
+            ...extractEventInfo(eventName, fn.name),
+            ...extractUserInfo(this),
+            ...extractNetworkInfo(this),
+            ...extractParameters(args),
+            ...extractTimestamp()
+        };
+
+        // 감사 로그 기록 시작
+        let result;
+
+
+        try {   
+        // 원본 함수 실행
+        result = await fn.apply(this, args);
+        auditLog = {
+            ...auditLog,
+            ...extractResult(result),
+            ...extractPerformance(start, Date.now()),
+        };
+
+        auditLog.errorType = undefined;
+        auditLog.errorMessage = undefined;
+        auditLog.stackTrace = undefined;
+        auditLog = { ...auditLog, ...extractTimestamp() };
+
+        auditLogger.info("[AUDIT]", auditLog);
+
+        } 
+        catch (err) 
+        {
+        // 오류 발생 시 감사 로그 업데이트
+        auditLog = {
+            ...auditLog,
+            ...extractErrorInfo(err),
+            ...extractPerformance(start, Date.now()),
+        };
+
+        auditLog = { ...auditLog, ...extractTimestamp() };
+
+
+        auditLogger.error("[AUDIT]", auditLog);
+        throw err;
+    } 
+    finally 
+    {
+        
+        // S3 저장: key는 'audit/{날짜}/{이벤트명}-{userId}-{timestamp}.json' 형태
+        const dateStr = auditLog.timestamp?.slice(0, 10) || "unknown";
+        const userIdStr = auditLog.userId || "anonymous";
+        const key = `audit/${dateStr}/${eventName}-${userIdStr}-${auditLog.timestamp.replace(/[:.]/g,"")}.json`;
+        await UploadAuditLogToS3(key, JSON.stringify(auditLog));
+    }
+    return result;
+  }) as T;
+}
+
+
 
 export {applicationLogger, auditLogger};

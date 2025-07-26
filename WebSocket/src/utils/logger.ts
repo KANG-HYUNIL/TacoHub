@@ -12,4 +12,4 @@
  * @version 1.0.0
  */
 
-export {applicationLogger, auditLogger, AuditLogDecorator} from '../config/logger';
+export {applicationLogger, auditLogger, AuditLogDecorator, withAuditLog} from '../config/logger';

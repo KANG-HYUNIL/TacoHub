@@ -68,7 +68,7 @@ export async function createServer() {
         setupSocketIO(io);
 
         // === REST API 엔드포인트 ===
-        app.get('/health', (req, res) => {
+        app.get('/ws/health', (req, res) => {
             res.json({ 
                 status: 'ok', 
                 message: 'WebSocket Server is running',

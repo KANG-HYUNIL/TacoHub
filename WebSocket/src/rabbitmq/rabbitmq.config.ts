@@ -32,6 +32,27 @@ export const API_SERVER_ROUTING_KEY = 'api.#';
 
 // RabbitMQ 서버 주소 및 포트 설정
 
+
+/**
+ * RabbitMQ Channel Singleton 
+ */
+let rabbitMQChannel: amqp.Channel | null = null;
+
+
+/**
+ * RabbitMQ ws 전용 queue 이름
+ */
+let rabbitMQWsQueueName: string= "";
+
+export async function getRabbitMQChannelSingleton() : Promise<amqp.Channel> {
+    if (rabbitMQChannel) {
+        return rabbitMQChannel;
+    }
+
+    rabbitMQChannel = await createRabbitMQConnection();
+    return rabbitMQChannel;
+}
+
 /**
  * RabbitMQ 에 필요한 값들 설정하는 드
  */
@@ -106,10 +127,12 @@ export async function connectServerQueue(channel: amqp.Channel, serverId: string
 
     try {
         // 서버별 큐 이름: prefix + serverId
-        const queueName = `${RABBITMQ_PREFIX}${serverId}`;
-        await channel.assertQueue(queueName, { durable: true });
+        rabbitMQWsQueueName = `${RABBITMQ_PREFIX}${serverId}`;
+        await channel.assertQueue(rabbitMQWsQueueName, { durable: true });
 
-        applicationLogger.info(`[${methodName}] 서버 전용 큐 연결/생성: ${queueName}`);
+        applicationLogger.info(`[${methodName}] 서버 전용 큐 연결/생성: ${rabbitMQWsQueueName}`);
+
+        const queueName: string = rabbitMQWsQueueName;
 
         return { channel, queueName };
     } catch (error) {
@@ -205,7 +228,7 @@ export async function bindCollaborationExchangeToServerQueue(
 export async function startRabbitMQ() : Promise<void> 
 {
     // 1. RabbitMQ 연결 생성
-    const channel : amqp.Channel = await createRabbitMQConnection();
+    const channel : amqp.Channel = await getRabbitMQChannelSingleton();
 
     // 2. Server 전용 큐 연결
     const serverId = process.env.SERVER_ID || 'default-server';
@@ -218,5 +241,8 @@ export async function startRabbitMQ() : Promise<void>
     await bindCollaborationExchangeToServerQueue(channel, queueName);
 
 }
+
+
+
 
 

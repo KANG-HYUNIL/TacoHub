@@ -19,6 +19,10 @@ public class RabbitMqConfig {
     // YML에서 설정값 주입
     @Value("${rabbitmq.exchanges.collaboration}")
     private String collaborationExchange;
+
+   // fanout exchange 이름을 yml에서 지정하거나, 없으면 topic 이름 + .fanout
+   @Value("${rabbitmq.exchanges.collaboration-fanout:}")
+   private String collaborationFanoutExchange;
     
     @Value("${rabbitmq.exchanges.notification}")
     private String notificationExchange;
@@ -70,6 +74,20 @@ public class RabbitMqConfig {
                 .durable(true)
                 .build();
     }
+
+   /**
+    * 협업 관련 메시지 Fanout Exchange (Broadcast용)
+    */
+   @Bean
+   public FanoutExchange collaborationFanoutExchange() {
+       String fanoutName = (collaborationFanoutExchange != null && !collaborationFanoutExchange.isEmpty())
+               ? collaborationFanoutExchange
+               : collaborationExchange + ".fanout";
+       return ExchangeBuilder
+               .fanoutExchange(fanoutName)
+               .durable(true)
+               .build();
+   }
     
     /**
      * 알림 관련 메시지 Exchange (Topic 타입)
@@ -272,4 +290,14 @@ public class RabbitMqConfig {
         
         return binding;
     }
+
+   /**
+    * API 서버 Queue와 Collaboration Fanout Exchange 바인딩 (Broadcast 수신용)
+    */
+   @Bean
+   public Binding apiServerFanoutBinding(RabbitAdmin rabbitAdmin) {
+       return BindingBuilder
+               .bind(apiServerQueue(rabbitAdmin))
+               .to(collaborationFanoutExchange());
+   }
 }

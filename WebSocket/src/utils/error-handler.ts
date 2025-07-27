@@ -1,3 +1,4 @@
+ 
 import { applicationLogger } from './logger';
 import { BusinessError } from '../types/error/BusinessError';
 import { ServerError } from '../types/error/ServerError';
@@ -112,3 +113,23 @@ export function emitSocketError(socket : Socket, error : SocketErrorPayload)
     )
 
 }
+
+
+/**
+ * Socket.IO 성공 응답 핸들러
+ * 클라이언트에게 표준화된 성공 메시지를 전송합니다.
+ * @param {Socket} socket - 소켓 인스턴스
+ * @param {string} event - 전송할 이벤트명
+ * @param {T} data - 성공 데이터
+ * @description
+ * 이 함수는 성공 응답을 SocketResponse<T> 구조로 emit합니다.
+ */
+export function emitSocketSuccess<T>(socket: Socket, event: string, data: T) {
+    socket.emit(event, {
+        success: true,
+        socketId: socket.id,
+        timestamp: new Date().toISOString(),
+        data
+    });
+}
+

@@ -20,7 +20,7 @@ import { applicationLogger } from '../utils/logger';
 import { getSecret } from '../config/aws';
 import { handleError } from '../utils/error-handler';
 import { RabbitMQError } from '../types/error/RabbitMQError';
-
+import { startConsumeFromQueue } from './rabbitmq.consumer';
 
 // RabbitMQ Prefix 
 const RABBITMQ_PREFIX = 'tacohub.ws.'; // RabbitMQ 큐 이름 접두사
@@ -239,6 +239,9 @@ export async function startRabbitMQ() : Promise<void>
 
     // 4. Collaboration Exchange와 Server Queue Fanout Binding(Broadcast)
     await bindCollaborationExchangeToServerQueue(channel, queueName);
+
+    // 5. RabbitMQ 메시지 consume 시작
+    await startConsumeFromQueue(queueName);
 
 }
 

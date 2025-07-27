@@ -20,7 +20,7 @@ import { handleSocketAuth } from '../handlers/auth.handler';
 import {  handleBlockUpdateBroadcastWithAudit,  } from '../handlers/page-edit.handler';
 import { SOCKET_EVENTS } from '../constants/socket-events.constants';
 import type { SocketErrorPayload, SocketEventMap, SocketResponse,  } from '../types/socket-events.types';
-import { handleError, emitSocketError } from '../utils/error-handler';
+import { handleError, emitSocketError, emitSocketSuccess } from '../utils/error-handler';
 
 
 /**
@@ -118,13 +118,8 @@ export function setupConnectionHandler(io: SocketIOServer) {
          * 클라이언트에게 연결 성공 알림 전송
          * 클라이언트가 연결 상태를 확인할 수 있도록 초기 응답 제공
          */
-        socket.emit(
-            SOCKET_EVENTS.CONNECTED,
-            {
-                success: true,
-                socketId: socket.id,
-                timestamp: new Date().toISOString(),
-            } satisfies SocketResponse<void>
-        );
+        emitSocketSuccess(socket, SOCKET_EVENTS.CONNECTED, {
+            socketId: socket.id
+        });
     });
 }

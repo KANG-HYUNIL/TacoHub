@@ -27,6 +27,126 @@ public class BlockService extends BaseService {
 
     private final BlockDocumentRepository blockDocumentRepository;
 
+    // ========== BlockDocument CRUD 메서드 ========== 
+
+    /**
+     * BlockDocument 생성
+     * @param blockDTO 생성할 블록 DTO
+     * @return 생성된 BlockDocument
+     */
+    public BlockDocument createBlock(BlockDTO blockDTO) {
+        String methodName = "createBlock";
+        log.info("[{}] 블록 생성 시작: blockId={}", methodName, blockDTO != null ? blockDTO.getId() : null);
+        try {
+            // 입력값 검증 (예: blockId, pageId 등)
+            validateBlockId(blockDTO.getId(), "blockId");
+            validatePageId(blockDTO.getPageId(), "pageId");
+
+            // DTO -> Entity 변환
+            BlockDocument entity = BlockConverter.toDocument(blockDTO);
+            BlockDocument saved = blockDocumentRepository.save(entity);
+            log.info("[{}] 블록 생성 완료: blockId={}", methodName, saved.getId());
+            return saved;
+        } catch (BlockOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowBlockException(methodName, e);
+            return null; // 실제로는 도달하지 않음
+        }
+    }
+
+    /**
+     * BlockDocument 단건 조회
+     * @param blockId 블록 ID
+     * @return 조회된 BlockDocument
+     */
+    public BlockDocument getBlockById(UUID blockId) {
+        String methodName = "getBlockById";
+        log.info("[{}] 블록 조회 시작: blockId={}", methodName, blockId);
+        try {
+            validateBlockId(blockId, "blockId");
+            BlockDocument doc = getBlockDocumentOrThrow(blockId);
+            log.info("[{}] 블록 조회 완료: blockId={}", methodName, blockId);
+            return doc;
+        } catch (BlockOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowBlockException(methodName, e);
+            return null;
+        }
+    }
+
+    /**
+     * BlockDocument 수정
+     * @param blockDTO 수정할 블록 DTO
+     * @return 수정된 BlockDocument
+     */
+    public BlockDocument updateBlock(BlockDTO blockDTO) {
+        String methodName = "updateBlock";
+        log.info("[{}] 블록 수정 시작: blockId={}", methodName, blockDTO != null ? blockDTO.getId() : null);
+        try {
+            validateBlockId(blockDTO.getId(), "blockId");
+            validatePageId(blockDTO.getPageId(), "pageId");
+            BlockDocument existing = getBlockDocumentOrThrow(blockDTO.getId());
+            // DTO -> Entity 변환 및 필드 업데이트
+            // 기존 엔티티에 DTO 값 복사 (id, pageId 등은 불변, 나머지 필드만 업데이트)
+            existing.setBlockType(blockDTO.getBlockType());
+            existing.setContent(blockDTO.getContent());
+            existing.setProperties(blockDTO.getProperties());
+            existing.setParentId(blockDTO.getParentId());
+            existing.setOrderIndex(blockDTO.getOrderIndex());
+            existing.setChildrenIds(blockDTO.getChildrenIds());
+            existing.setHasChildren(blockDTO.getHasChildren());
+            existing.setMetadata(blockDTO.getMetadata());
+            existing.setUpdatedAt(blockDTO.getUpdatedAt());
+            existing.setLastEditedBy(blockDTO.getLastEditedBy());
+            BlockDocument saved = blockDocumentRepository.save(existing);
+            log.info("[{}] 블록 수정 완료: blockId={}", methodName, saved.getId());
+            return saved;
+        } catch (BlockOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowBlockException(methodName, e);
+            return null;
+        }
+    }
+
+    /**
+     * BlockDocument 삭제 (soft delete)
+     * @param blockId 삭제할 블록 ID
+     */
+    public void deleteBlock(UUID blockId) {
+        String methodName = "deleteBlock";
+        log.info("[{}] 블록 삭제 시작: blockId={}", methodName, blockId);
+        try {
+            validateBlockId(blockId, "blockId");
+            BlockDocument doc = getBlockDocumentOrThrow(blockId);
+            doc.setIsDeleted(true);
+            blockDocumentRepository.save(doc);
+            log.info("[{}] 블록 삭제 완료(soft): blockId={}", methodName, blockId);
+        } catch (BlockOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowBlockException(methodName, e);
+        }
+    }
+
     // ========== 공통 검증 메서드 ==========
     
     /**

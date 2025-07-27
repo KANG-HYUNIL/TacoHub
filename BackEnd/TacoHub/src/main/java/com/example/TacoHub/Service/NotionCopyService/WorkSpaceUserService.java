@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceUserConverter;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO;
+import com.example.TacoHub.Dto.NotionCopyDTO.Request.InviteUserRequest;
 import com.example.TacoHub.Entity.AccountEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceUserEntity;

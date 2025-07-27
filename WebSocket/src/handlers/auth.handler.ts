@@ -16,6 +16,7 @@ import { isValidAccessToken, isExpiredAccessToken } from '../services/auth.servi
 import { ERROR_MESSAGES } from '../constants/error-messages';
 import { SocketResponse } from '../types/socket-events.types';
 import { SOCKET_EVENTS } from '../constants/socket-events.constants';
+import { emitSocketError } from '../utils/error-handler';
 
 
 /**
@@ -30,38 +31,24 @@ export async function handleSocketAuth(socket: Socket): Promise<boolean> {
 
     // 1. 토큰 유효성 검증
 
+
     if (!accessToken || !isValidAccessToken(accessToken)) {
-        socket.emit(SOCKET_EVENTS.AUTHENTICATION_REQUIRED, 
-            { 
-                socketId: socket.id,
-                timestamp: new Date().toISOString(),
-                success: false,
-                error :
-                {
-                    code : ERROR_MESSAGES.INVALID_TOKEN,
-                    message: ERROR_MESSAGES.INVALID_TOKEN,
-                }
-            } satisfies SocketResponse<void>
-        );
+        emitSocketError(socket, {
+            code: ERROR_MESSAGES.INVALID_TOKEN,
+            message: ERROR_MESSAGES.INVALID_TOKEN,
+            details: { socketId: socket.id }
+        });
         socket.disconnect();
         return false;
     }
 
-
     // 2. 만료 여부 체크
     if (isExpiredAccessToken(accessToken)) {
-        socket.emit(SOCKET_EVENTS.AUTHENTICATION_REQUIRED, 
-            { 
-                socketId: socket.id,
-                timestamp: new Date().toISOString(),
-                success: false,
-                error :
-                {
-                    code : ERROR_MESSAGES.EXPIRED_TOKEN,
-                    message: ERROR_MESSAGES.EXPIRED_TOKEN,
-                }
-            } satisfies SocketResponse<void>
-        );
+        emitSocketError(socket, {
+            code: ERROR_MESSAGES.EXPIRED_TOKEN,
+            message: ERROR_MESSAGES.EXPIRED_TOKEN,
+            details: { socketId: socket.id }
+        });
         socket.disconnect();
         return false;
     }

@@ -72,3 +72,4 @@ out/
 *.tmp
 *.temp
 .cache/
+BackEnd/TacoHub/.env

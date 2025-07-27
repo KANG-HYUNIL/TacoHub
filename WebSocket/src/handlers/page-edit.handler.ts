@@ -27,7 +27,7 @@ import { WorkspaceRole } from '../constants/workspace-role.enum';
 import { ERROR_MESSAGES } from '../constants/error-messages';
 import { getSocketsByUser, getUsersInPage } from '../services/presence.service';
 import { getRoomName, SOCKET_EVENTS } from '../constants/socket-events.constants';
-import { emitSocketError, handleError } from '../utils/error-handler';
+import { emitSocketError, emitSocketSuccess, handleError } from '../utils/error-handler';
 import { PageEditError } from '../types/error/PageEditError';
 import { BlockMessage } from '../rabbitmq/types/block-message.types';
 import { publishBlockUpdateMessageToCollaborationExchangeByBroadcast } from '../rabbitmq/rabbitmq.producer';
@@ -85,7 +85,11 @@ export async function handleBlockUpdateBroadcast(
         if (socket.data.workspaceRole === WorkspaceRole.GUEST)
         {
             applicationLogger.warn(`User ${socket.data.userId} attempted to update block in workspace ${data.workspaceId} without sufficient permissions`);
-            socket.emit(SOCKET_EVENTS.ERROR, { message: ERROR_MESSAGES.USER_PERMISSIONS_DENIED });
+            emitSocketError(socket, {
+                code: 'PERMISSION_DENIED',
+                message: ERROR_MESSAGES.USER_PERMISSIONS_DENIED,
+                details: { workspaceId: data.workspaceId }
+            });
             return;
         }
 
@@ -149,6 +153,13 @@ export async function handleBlockUpdateBroadcast(
         await publishBlockUpdateMessageToCollaborationExchangeByBroadcast(blockMessage);
 
         applicationLogger.info(`[${methodName}] Block update broadcasted successfully for block ID ${data.blockDTO.id} in workspace ${data.workspaceId}`);
+
+        // 성공 응답 emit (예시: BLOCK_UPDATE_BROADCAST_SUCCESS)
+        emitSocketSuccess(socket, SOCKET_EVENTS.BLOCK_UPDATE_BROADCAST, {
+            message: 'Block update broadcasted successfully',
+            blockId: data.blockDTO.id,
+            workspaceId: data.workspaceId
+        });
 
 
     } catch (error)

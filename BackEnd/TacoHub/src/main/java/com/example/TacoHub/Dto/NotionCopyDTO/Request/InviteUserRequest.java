@@ -1,5 +1,7 @@
 package com.example.TacoHub.Dto.NotionCopyDTO.Request;
 
+import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,7 +22,7 @@ public class InviteUserRequest {
 
     @NotBlank(message = "역할은 필수입니다")
     @Pattern(regexp = "^(ADMIN|MEMBER|GUEST)$", message = "역할은 ADMIN, MEMBER, GUEST 중 하나여야 합니다")
-    private String role;
+    private WorkSpaceRole role;
 
     private String message; // 선택적 초대 메시지
     

@@ -1,9 +1,11 @@
 package com.example.TacoHub.Service.NotionCopyService;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ import com.example.TacoHub.Service.BaseService;
 import com.example.TacoHub.Service.EmailService;
 import com.example.TacoHub.Service.RedisService;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -86,7 +89,7 @@ public class InvitationService extends BaseService {
             }
             
             // 4. 실제 초대 처리
-            WorkSpaceRole role = WorkSpaceRole.valueOf(request.getRole());
+            WorkSpaceRole role = request.getRole();
             return inviteUser(workspaceId, request.getEmail(), role, request.getMessage(), request.getExpirationDays());
             
         } catch (InvitationOperationException e) {
@@ -116,6 +119,7 @@ public class InvitationService extends BaseService {
      * @return 초대 생성 결과
      */
     @AuditLogging(action = "사용자_초대_처리", includeParameters = true, includePerformance = true)
+    @Transactional
     public InvitationResponse inviteUser(UUID workspaceId, String email, WorkSpaceRole role, 
                                        String customMessage, Integer expirationDays) {
         String methodName = "inviteUser";
@@ -140,11 +144,12 @@ public class InvitationService extends BaseService {
                 
                 InvitationEntity invitationEntity = invitationRepository.
                     findByInvitedEmailAndWorkspaceIdAndStatus(email, workspaceId, InvitationStatus.PENDING).get();
-                
-                if (invitationEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
-                    log.warn("[{}] 만료된 초대: token={}, expiresAt={}", 
-                                        methodName, invitationEntity.getInvitationToken(), invitationEntity.getExpiresAt());
-                    
+
+                    // 만료된 초대인지 확인
+                if (isInvitationExpired(invitationEntity)) {
+                    log.warn("[{}] 만료된 초대: token={}, expiresAt={}",
+                            methodName, invitationEntity.getInvitationToken(), invitationEntity.getExpiresAt());
+
                     // 만료된 초대는 상태를 EXPIRED로 변경
                     invitationEntity.setStatus(InvitationStatus.EXPIRED);
                     invitationRepository.save(invitationEntity);
@@ -185,8 +190,6 @@ public class InvitationService extends BaseService {
             
             invitationRepository.save(invitation);
             
-            // // 7. Redis에 캐싱
-            // saveInvitationToRedis(invitationToken, invitation);
             
             // 8. 이메일 전송
             boolean emailSent = emailService.sendInvitationEmail(
@@ -236,6 +239,7 @@ public class InvitationService extends BaseService {
  * @return 초대 수락 결과
  */
 @AuditLogging(action = "초대_수락", includeParameters = true, includePerformance = true)
+@Transactional
 public InvitationAcceptResponse acceptInvitationByToken(String token) {
     String methodName = "acceptInvitationByToken";
     log.info("[{}] 초대 수락 처리 시작: token={}", methodName, token);
@@ -247,17 +251,7 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
             throw new InvitationOperationException("초대 토큰은 필수입니다.");
         }
         
-        // 2. Redis에서 초대 정보 조회 시도 (빠른 응답을 위한 1차 시도)
-        // Map<String, String> redisInvitation = getInvitationFromRedis(token);
-        // String invitedEmail = null;
-        // UUID workspaceId = null;
-        
-        // if (redisInvitation != null) {
-        //     invitedEmail = redisInvitation.get("email");
-        //     workspaceId = UUID.fromString(redisInvitation.get("workspaceId"));
-        //     log.debug("[{}] Redis에서 초대 정보 획득: email={}, workspaceId={}", 
-        //             methodName, invitedEmail, workspaceId);
-        // }
+
         
 
         // 3. DB에서 초대 엔티티 조회 (정확한 상태 확인을 위한 필수 과정)
@@ -299,12 +293,7 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
             throw new InvitationOperationException("이미 워크스페이스의 멤버입니다.");
         }
         
-        // 7. 현재 로그인 사용자 정보 확인 (향후 확장 가능)
-        // String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
-        // if (isStringNullOrEmpty(currentUserEmail)) {
-        //     log.warn("[{}] 현재 사용자 정보 없음: 로그인이 필요함", methodName);
-        //     throw new InvitationOperationException("로그인이 필요합니다.");
-        // }
+
         
         // 8. 워크스페이스에 사용자 추가 (실제 멤버십 생성)
 
@@ -333,8 +322,7 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
         invitation.setAcceptedAt(LocalDateTime.now());
         invitationRepository.save(invitation);
         
-        // // 10. Redis에서 초대 정보 삭제 (일회성 토큰 보장)
-        // deleteInvitationFromRedis(token);
+
         
         // 11. 성공 응답 생성
         InvitationAcceptResponse response = InvitationAcceptResponse.builder()
@@ -371,10 +359,13 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
      * @param workspaceId 워크스페이스 ID
      * @return 대기 중인 초대 목록
      */
-    public List<PendingInvitationResponse> getPendingInvitations(UUID workspaceId) {
-        // TODO: 구현 예정
-        return null;
+    public List<InvitationEntity> getPendingInvitations(UUID workspaceId) {
+
+        Optional<List<InvitationEntity>> pendingInvitations = invitationRepository.findByWorkspaceIdAndStatus(workspaceId, InvitationStatus.PENDING);
+
+        return pendingInvitations.orElseGet(Collections::emptyList);
     }
+
     
     /**
      * 특정 초대 토큰 정보 조회
@@ -427,9 +418,13 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
      * @param token 초대 토큰
      * @return 만료 여부
      */
-    public boolean isInvitationExpired(String token) {
-        // TODO: 구현 예정
-        return false;
+    public boolean isInvitationExpired(InvitationEntity invitationEntity) {
+
+        if (invitationEntity == null || invitationEntity.getExpiresAt() == null) {
+            return true;
+        }
+
+        return invitationEntity.getExpiresAt().isBefore(LocalDateTime.now());
     }
     
     /**
@@ -475,133 +470,8 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
         return LocalDateTime.now().plusDays(days);
     }
     
-    /**
-     * Redis 저장용 초대 토큰 키 생성
-     * @param token 초대 토큰
-     * @return Redis 키
-     */
-    private String getInvitationTokenKey(String token) {
-        return INVITATION_REDIS_KEY + token;
-    }
-    
-    /**
-     * Redis 저장용 이메일 키 생성 (중복 방지용)
-     * @param email 이메일
-     * @param workspaceId 워크스페이스 ID
-     * @return Redis 키
-     */
-    private String getInvitationEmailKey(String email, UUID workspaceId) {
-        return INVITATION_EMAIL_KEY + email + ":" + workspaceId;
-    }
-    
-    /**
-     * Redis에 초대 정보 저장
-     * @param token 초대 토큰
-     * @param invitation 초대 엔티티
-     */
-    private void saveInvitationToRedis(String token, InvitationEntity invitation) {
-        
-        String methodName = "saveInvitationToRedis";
-        try {
-            String key = getInvitationTokenKey(token);
-            // 간단한 문자열로 저장 (JSON 형태)
-            String invitationJson = String.format(
-                "{\"email\":\"%s\",\"workspaceId\":\"%s\",\"role\":\"%s\",\"invitedBy\":\"%s\",\"expiresAt\":\"%s\"}",
-                invitation.getInvitedEmail(),
-                invitation.getWorkspaceId().toString(),
-                invitation.getRole().name(),
-                invitation.getInvitedBy(),
-                invitation.getExpiresAt().toString()
-            );
-            
-            // TTL을 만료 시간에 맞춰 설정
-            long days = java.time.Duration.between(LocalDateTime.now(), invitation.getExpiresAt()).toDays();
-            if (days <= 0) days = 1; // 최소 1일
-            
-            redisService.setValues(key, invitationJson, java.time.Duration.ofDays(days));
-        } catch (InvitationOperationException e) {
-            log.warn("[{}] Redis 초대 정보 저장 실패: token={}, 원인={}", methodName, token, e.getMessage());
-            throw e;
-        }
-        catch (BusinessException e)
-        {
-            log.warn("[{}] Redis 초대 정보 저장 비즈니스 오류: token={}, 원인={}", methodName, token, e.getMessage());
-            throw e;
-        }
-        catch (Exception e) {
-            handleAndThrowInvitationException(methodName, e);
-        }
-    }
-    
-    /**
-     * Redis에서 초대 정보 조회
-     * @param token 초대 토큰
-     * @return 초대 정보 Map
-     */
-    private Map<String, String> getInvitationFromRedis(String token) {
-        
-        String methodName = "getInvitationFromRedis";
-
-        try {
-            String key = getInvitationTokenKey(token);
-            String invitationJson = redisService.getValues(key);
-
-            // JSON 파싱 로직 추가 (예: Jackson 사용)
-            if (isStringNullOrEmpty(invitationJson)) {
-                log.warn("[{}] Redis 초대 정보 조회 실패: token={}, 원인=정보 없음", methodName, token);
-                return null; // 정보가 없으면 null 반환
-            }
-
-            // 간단한 JSON 파싱 (실제로는 ObjectMapper 사용 권장)
-            Map<String, String> invitationData = new HashMap<>();
-            
-            // JSON 문자열에서 데이터 추출
-            invitationJson = invitationJson.replace("{", "").replace("}", "").replace("\"", "");
-            String[] pairs = invitationJson.split(",");
-            
-            for (String pair : pairs) {
-                String[] keyValue = pair.split(":");
-                if (keyValue.length == 2) {
-                    invitationData.put(keyValue[0].trim(), keyValue[1].trim());
-                }
-            }
-            
-            log.debug("[{}] Redis 초대 정보 조회 성공: token={}, email={}", 
-                    methodName, token, invitationData.get("email"));
-            
-            return invitationData;
 
 
-        } catch (Exception e) {
-            log.warn("Redis 초대 정보 조회 실패: token={}, error={}", token, e.getMessage());
-        }
-        return null;
-    }
-    
-    /**
-     * Redis에서 초대 정보 삭제
-     * @param token 초대 토큰
-     */
-    private void deleteInvitationFromRedis(String token) {
-        String methodName = "deleteInvitationFromRedis";
-        
-        try {
-            String key = getInvitationTokenKey(token);
-            redisService.deleteValues(key);
-            
-            log.debug("[{}] Redis 초대 정보 삭제 완료: token={}", methodName, token);
-            
-        } catch (InvitationOperationException e) {
-            log.warn("[{}] Redis 초대 정보 삭제 처리 오류: token={}, 원인={}", methodName, token, e.getMessage());
-            // 삭제 실패는 치명적이지 않으므로 예외를 던지지 않음
-        } catch (BusinessException e) {
-            log.warn("[{}] Redis 초대 정보 삭제 비즈니스 오류: token={}, 원인={}", methodName, token, e.getMessage());
-            // 삭제 실패는 치명적이지 않으므로 예외를 던지지 않음
-        } catch (Exception e) {
-            log.warn("[{}] Redis 초대 정보 삭제 시스템 오류: token={}, error={}", methodName, token, e.getMessage());
-            // Redis 삭제 실패는 치명적이지 않으므로 예외를 던지지 않음 (TTL로 자동 만료됨)
-        }
-    }
     
     // ========== 입력값 검증 메서드 ==========
     
@@ -621,14 +491,14 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
             throw new InvitationOperationException("초대할 이메일 주소는 필수입니다.");
         }
         
-        if (isStringNullOrEmpty(request.getRole())) {
+        if (isStringNullOrEmpty(request.getRole().toString())) {
             log.warn("초대 요청 검증 실패: 메서드={}, 원인=역할이 필수", methodName);
             throw new InvitationOperationException("초대할 사용자의 역할은 필수입니다.");
         }
         
         // 역할 유효성 검증
         try {
-            WorkSpaceRole.valueOf(request.getRole());
+            WorkSpaceRole.valueOf(request.getRole().toString());
         } catch (IllegalArgumentException e) {
             log.warn("초대 요청 검증 실패: 메서드={}, 원인=유효하지 않은 역할, role={}", 
                     methodName, request.getRole());

@@ -10,6 +10,7 @@ import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Enum.NotionCopyEnum.WorkSpaceRole;
+import com.example.TacoHub.Service.NotionCopyService.InvitationService;
 import com.example.TacoHub.Service.NotionCopyService.WorkSpaceService;
 import com.example.TacoHub.Service.NotionCopyService.WorkSpaceUserService;
 
@@ -34,6 +35,7 @@ public class WorkspaceController {
 
     private final WorkSpaceService workspaceService;
     private final WorkSpaceUserService workSpaceUserService;
+    private final InvitationService invitationService;
 
     /**
      * 워크스페이스 생성
@@ -99,9 +101,8 @@ public class WorkspaceController {
         log.info("사용자 초대 요청: workspaceId={}, email={}, role={}", 
                 workspaceId, request.getEmail(), request.getRole());
 
-        // TODO: 초대 로직 구현 필요 (EmailService, AuthCodeService와 함께)
-        // 현재는 기본적인 응답만 반환
-        
+        invitationService.createInvitation(workspaceId, request);
+
         log.info("사용자 초대 완료: workspaceId={}, email={}", workspaceId, request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(
                 "초대 이메일이 발송되었습니다.", 
@@ -184,8 +185,10 @@ public class WorkspaceController {
             @PathVariable String invitationToken) {
         log.info("초대 수락 요청: workspaceId={}, token={}", workspaceId, invitationToken);
 
-        // TODO: 초대 수락 로직 구현 필요
-        // AuthCodeService에서 토큰 검증 후 WorkSpaceUserService에서 사용자 활성화
+        // 초대 토큰으로 초대 정보 조회
+        invitationService.acceptInvitationByToken(invitationToken);
+
+
         
         log.info("초대 수락 완료: workspaceId={}", workspaceId);
         return ResponseEntity.ok(ApiResponse.success(

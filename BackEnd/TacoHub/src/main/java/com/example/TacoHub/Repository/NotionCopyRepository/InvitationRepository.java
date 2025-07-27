@@ -32,7 +32,7 @@ public interface InvitationRepository extends JpaRepository<InvitationEntity, UU
      * @param status 초대 상태
      * @return 초대 목록
      */
-    List<InvitationEntity> findByWorkspaceIdAndStatus(UUID workspaceId, InvitationStatus status);
+    Optional<List<InvitationEntity>> findByWorkspaceIdAndStatus(UUID workspaceId, InvitationStatus status);
 
     /**
      * 이메일과 워크스페이스로 대기 중인 초대 조회
@@ -53,6 +53,7 @@ public interface InvitationRepository extends JpaRepository<InvitationEntity, UU
      */
     boolean existsByInvitedEmailAndWorkspaceIdAndStatus(
         String email, UUID workspaceId, InvitationStatus status);
+
 
     /**
      * 만료된 초대들을 조회

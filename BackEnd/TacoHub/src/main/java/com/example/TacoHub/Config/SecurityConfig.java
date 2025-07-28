@@ -27,7 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     // 경로 상수 정의
-    private static final String LOGIN_URL = "/login";
+    private static final String LOGIN_URL = "/api/login";
     private static final String LOGOUT_URL = "/logout";
     
     // 필요한 의존성 주입

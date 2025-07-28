@@ -1,0 +1,42 @@
+.notion-home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fafafc;
+}
+.notion-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+.notion-login-btn, .notion-signup-btn {
+  margin-left: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.notion-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.notion-visual-placeholder {
+  margin-top: 2rem;
+}
+.notion-visual-box {
+  width: 400px;
+  height: 200px;
+  background: #ececec;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 1.2rem;
+}

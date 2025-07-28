@@ -1,8 +1,9 @@
 export interface ApiResponse<T> {
     success: boolean;
-    data?: T;
     message?: string;
-    error?: string;
+    data?: T;
+    timestamp?: string;
+    errorCode?: string;
 }
 
 export interface AuthResponse {

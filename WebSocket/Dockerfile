@@ -1,5 +1,5 @@
 # TacoHub WebSocket Server Dockerfile (TypeScript)
-FROM node:20-alpine
+FROM node:20.11.1-alpine
 
 # 작업 디렉토리 생성
 WORKDIR /app

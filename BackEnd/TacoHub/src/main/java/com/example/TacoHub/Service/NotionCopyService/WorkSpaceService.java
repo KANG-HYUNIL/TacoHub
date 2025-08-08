@@ -105,6 +105,8 @@ public class WorkSpaceService extends BaseService {
         try {
             // 1. 입력값 검증
             validateWorkspaceName(newWorkspaceName, methodName);
+
+            // 1.5 요청 사용자 검증
             String currentUserEmail = validateCurrentUserEmail(methodName);
 
             // 2. 기초 entity 생성

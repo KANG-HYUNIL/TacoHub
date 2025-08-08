@@ -1,6 +1,9 @@
 package com.example.TacoHub.Utils.Jwt;
 
+import com.example.TacoHub.Dto.ErrorResponseDTO;
 import com.example.TacoHub.Entity.AccountEntity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,9 +73,11 @@ public class JwtFilter extends OncePerRequestFilter {
      * 오류 응답 전송
      */
     private void sendErrorResponse(HttpServletResponse response, String message, int status) throws IOException {
-        PrintWriter writer = response.getWriter();
-        writer.print(message);
+        ErrorResponseDTO errorResponse = new ErrorResponseDTO("ACCESS_TOKEN_ERROR", message);
         response.setStatus(status);
+        response.setContentType("application/json");
+        PrintWriter writer = response.getWriter();
+        writer.print(new ObjectMapper().writeValueAsString(errorResponse));
     }
 
     /**

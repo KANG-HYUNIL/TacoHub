@@ -1,16 +1,19 @@
+
+
 package com.example.TacoHub.Service;
 
 import com.example.TacoHub.Converter.AccountConverter;
 import com.example.TacoHub.Dto.AccountDto;
 import com.example.TacoHub.Dto.EmailVerificationDto;
 import com.example.TacoHub.Entity.AccountEntity;
-import com.example.TacoHub.Exception.AccountNotFoundException;
-import com.example.TacoHub.Exception.AccountOperationException;
-import com.example.TacoHub.Exception.BusinessException;
-import com.example.TacoHub.Exception.EmailAlreadyExistsException;
-import com.example.TacoHub.Exception.InvalidAuthCodeException;
+import com.example.TacoHub.Exception.*;
 import com.example.TacoHub.Logging.AuditLogging;
 import com.example.TacoHub.Repository.AccountRepository;
+import com.example.TacoHub.Service.NotionCopyService.WorkSpaceService;
+import com.example.TacoHub.Utils.Jwt.JwtUtil;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +30,8 @@ public class AccountService extends BaseService {
     private final AuthCodeService authCodeService;
     private final AccountRepository accountRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-
+    private final JwtUtil jwtUtil;
+    private final WorkSpaceService  workspaceService;
     private final String ROLE_USER = "ROLE_USER";
     
     // ========== 공통 검증 메서드 ==========
@@ -240,6 +244,69 @@ public class AccountService extends BaseService {
                     return new AccountNotFoundException("사용자가 존재하지 않습니다: " + emailId);
                 });
     }
+
+
+
+    /**
+     * Access Token을 요청 헤더에서 받아 JWT 검증 후 계정 정보를 반환하는 메서드
+     * @param request HttpServletRequest (헤더에서 access token 추출)
+     * @return AccountDto 또는 에러 응답
+     * 동작 순서:
+     * 1. 요청 헤더에서 access token 추출
+     * 2. access token 유효성 검증
+     * 3. 토큰에서 계정 id(emailId) 추출
+     * 4. 계정 정보 조회 및 반환
+     * (내부 로직은 추후 구현)
+     */
+    public AccountDto getAccountInfoByAccessToken(HttpServletRequest request) {
+        final String methodName = "getAccountInfoByAccessToken";
+        try {
+            // 1. 요청 헤더에서 access token 추출
+            String accessToken = request.getHeader("access");
+            if (isStringNullOrEmpty(accessToken)) {
+                log.warn("[{}] access token null", methodName);
+                throw new com.example.TacoHub.Exception.TokenNullException("access token이 존재하지 않습니다");
+            }
+            // 2. access token 만료 여부 검증
+            if (jwtUtil.isExpired(accessToken)) {
+                log.warn("[{}] access token expired", methodName);
+                throw new com.example.TacoHub.Exception.TokenExpiredException("access token 만료");
+            }
+
+            // 3. Jwt Token 에서 계정 emailId(username) 추출
+            String emailId = jwtUtil.getUsername(accessToken);
+
+            // 4. 계정 정보 조회 및 반환
+            AccountEntity accountEntity = getAccountEntityOrThrow(emailId);
+            AccountDto accountDto = AccountDto.builder()
+                    .emailId(accountEntity.getEmailId())
+                    .name(accountEntity.getName())
+                    .role(accountEntity.getRole())
+                    .build();
+
+            log.info("[{}] 계정 정보 조회 성공: emailId={}", methodName, emailId);
+            return accountDto;
+
+            // 이후 로직은 추후 구현
+        } catch (com.example.TacoHub.Exception.TokenNullException e) {
+            log.warn("[{}] TokenNullException: {}", methodName, e.getMessage());
+            throw e;
+        } catch (com.example.TacoHub.Exception.TokenExpiredException e) {
+            log.warn("[{}] TokenExpiredException: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] BusinessException: {}", methodName, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowAccountException(methodName, e);
+            return null; // 실제로는 도달하지 않음
+        }
+ 
+    }
+
+
+
+
 
     /**
      * 공통 Account 예외 처리 메서드

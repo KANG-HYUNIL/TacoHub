@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import './SignupPage.css';
 import { API_ENDPOINTS } from '../../constants/api';
 import axios from 'axios';
+import { signup, login } from '../../utils/authUtils';
+import { createWorkspace } from '../../utils/api/workspaceApi';
 
 const SignupPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [authCode, setAuthCode] = useState('');
   const [isCodeSent, setIsCodeSent] = useState(false);
-  const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [pw, setPw] = useState('');
   const [pwCheck, setPwCheck] = useState('');
   const [isEmailChecked, setIsEmailChecked] = useState(false);
   const [emailCheckMsg, setEmailCheckMsg] = useState('');
+  const [name, setName] = useState('');
 
   /**
    * 이메일 중복 검증 버튼 클릭 시 호출
@@ -43,47 +45,6 @@ const SignupPage: React.FC = () => {
     }
   };
 
-  /**
-   * 인증번호 전송 버튼 클릭 시 호출
-   * @returns void
-   * 1. 이메일 중복 검증 성공 여부 확인
-   * 2. axios로 인증번호 전송 API 호출 (실제 구현 필요)
-   * 3. 성공 시 isCodeSent true
-   * 4. 실패 시 alert
-   */
-  const handleSendCode = async (): Promise<void> => {
-    // 1. 이메일 중복 검증 성공 여부 확인
-    if (!isEmailChecked) {
-      alert('이메일 중복 검증을 먼저 완료하세요.');
-      return;
-    }
-    // 2. axios로 인증번호 전송 API 호출 (실제 구현 필요)
-    // TODO: 실제 API 연동 필요
-    // 3. 성공 시 isCodeSent true
-    setIsCodeSent(true);
-    // 4. 실패 시 alert (실제 구현 시 catch에서 처리)
-  };
-
-  /**
-   * 인증번호 확인 버튼 클릭 시 호출
-   * @returns void
-   * 1. 인증번호 입력값 체크
-   * 2. axios로 인증번호 검증 API 호출 (실제 구현 필요)
-   * 3. 성공 시 isCodeVerified true
-   * 4. 실패 시 alert
-   */
-  const handleVerifyCode = async (): Promise<void> => {
-    // 1. 인증번호 입력값 체크
-    if (!authCode) {
-      alert('인증번호를 입력하세요.');
-      return;
-    }
-    // 2. axios로 인증번호 검증 API 호출 (실제 구현 필요)
-    // TODO: 실제 API 연동 필요
-    // 3. 성공 시 isCodeVerified true
-    setIsCodeVerified(true);
-    // 4. 실패 시 alert (실제 구현 시 catch에서 처리)
-  };
 
   /**
    * 회원가입 폼 제출 시 호출
@@ -94,7 +55,17 @@ const SignupPage: React.FC = () => {
    * 3. 성공 시 알림
    * 4. 실패 시 알림
    */
-  const handleSignup = (e: React.FormEvent): void => {
+  /**
+   * 회원가입 폼 제출 시 호출
+   * @param e - 폼 이벤트 객체
+   * @returns void
+   * 1. 폼 기본 동작 방지
+   * 2. 비밀번호 일치 여부 확인
+   * 3. 회원가입 API 호출 (authUtils.signup)
+   * 4. 회원가입 성공 시 자동 로그인 (authUtils.login)
+   * 5. 실패 시 알림
+   */
+  const handleSignup = async (e: React.FormEvent): Promise<void> => {
     // 1. 폼 기본 동작 방지
     e.preventDefault();
     // 2. 비밀번호 일치 여부 확인
@@ -102,10 +73,34 @@ const SignupPage: React.FC = () => {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
-    // 3. axios로 회원가입 API 호출 (실제 구현 필요)
-    // TODO: 실제 API 연동 필요
-    // 4. 성공 시 알림, 실패 시 알림 (실제 구현 시 catch에서 처리)
-    alert('회원가입 완료! (실제 API 연동 필요)');
+    // 3. 회원가입 API 호출
+    //TODO : 전부 고쳐야 함
+
+  // 1. 회원가입
+  const signupResult: boolean = await signup(email, pw, name, authCode);
+  if (!signupResult) {
+    alert('회원가입에 실패했습니다. 입력 정보를 확인해주세요.');
+    return;
+  }
+
+  // 2. 로그인
+  const loginResult: boolean = await login(email, pw);
+  if (!loginResult) {
+    alert('회원가입은 성공했으나, 자동 로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.');
+    return;
+  }
+
+  // 3. 워크스페이스 생성
+  const createWorkspaceResult: boolean = await createWorkspace('Default Workspace');
+  if (!createWorkspaceResult) {
+    alert('회원가입 및 로그인은 성공했으나, 워크스페이스 생성에 실패했습니다. 마이페이지에서 직접 생성할 수 있습니다.');
+    return;
+  }
+
+  // 4. 최종 완료
+  alert('회원가입이 완료되었습니다! 기본 워크스페이스가 생성되었으며, 자동으로 로그인되었습니다.');
+  // 필요하다면 메인 페이지로 이동 등 추가 처리
+
   };
 
   return (
@@ -129,14 +124,8 @@ const SignupPage: React.FC = () => {
           </button>
         </div>
         {emailCheckMsg && <div className="email-check-msg">{emailCheckMsg}</div>}
-        {/* 이메일 중복 검증 성공 시에만 인증번호 전송 버튼 노출 */}
-        {isEmailChecked && !isCodeSent && (
-          <button type="button" onClick={handleSendCode}>
-            인증번호 전송
-          </button>
-        )}
-        {/* 인증번호 전송 후 인증번호 입력 레이어 노출 */}
-        {isCodeSent && (
+        {/* 이메일 중복 검증 성공 시 인증번호 입력 및 비밀번호 입력 레이어 노출 */}
+        {isEmailChecked && (
           <>
             <input
               type="text"
@@ -145,14 +134,13 @@ const SignupPage: React.FC = () => {
               onChange={e => setAuthCode(e.target.value)}
               required
             />
-            <button type="button" onClick={handleVerifyCode} disabled={isCodeVerified || !authCode}>
-              인증번호 확인
-            </button>
-          </>
-        )}
-        {/* 인증번호 검증 성공 시 비밀번호 입력 레이어 노출 */}
-        {isCodeVerified && (
-          <>
+            <input
+              type="text"
+              placeholder="이름 입력"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+            />
             <input
               type="password"
               placeholder="비밀번호 입력"

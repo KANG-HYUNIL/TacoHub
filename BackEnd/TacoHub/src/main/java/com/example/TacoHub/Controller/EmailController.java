@@ -6,6 +6,7 @@ import com.example.TacoHub.Service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.example.TacoHub.Dto.NotionCopyDTO.Response.ApiResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,13 +30,12 @@ public class EmailController {
      * @return 인증 코드 발송 성공 또는 실패 응답
      */
     @PostMapping("/verification")
-    public ResponseEntity<?> sendVerificationCode(@RequestBody EmailVerificationDto emailVerificationDto)
+    public ResponseEntity<ApiResponse<String>> sendVerificationCode(@RequestBody EmailVerificationDto emailVerificationDto)
     {
         String email = emailVerificationDto.getEmail();
         String purpose = emailVerificationDto.getPurpose();
-
         emailService.sendAuthCodeToEmail(email, purpose);
-        return ResponseEntity.ok("Verification code sent to " + email);
+        return ResponseEntity.ok(ApiResponse.success("Verification code sent to " + email, null));
     }
 
     /**
@@ -45,14 +45,14 @@ public class EmailController {
      * @return 인증 성공 또는 실패 응답
      */
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyCode(@RequestBody EmailVerificationDto emailVerificationDto)
+    public ResponseEntity<ApiResponse<String>> verifyCode(@RequestBody EmailVerificationDto emailVerificationDto)
     {
         boolean isVerified = authCodeService.verifyAuthCode(emailVerificationDto);
-
         if (isVerified) {
-            return ResponseEntity.ok("인증 성공");
+            return ResponseEntity.ok(ApiResponse.success("인증 성공", null));
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("인증 실패");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("인증 실패", "INVALID_AUTH_CODE"));
         }
     }
 

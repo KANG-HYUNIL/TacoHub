@@ -10,7 +10,6 @@ export interface WorkSpaceDTO {
   id: string;
   name: string;
   rootPageDTOS: PageDTO[];
-  workSpaceUserDTOS: WorkSpaceUserDTO[];
 }
 
 export interface PageDTO {
@@ -22,7 +21,7 @@ export interface PageDTO {
   workspaceId: string;
   workspaceName: string;
   parentPageId?: string;
-  childPages: PageDTO[];
+  childPages?: PageDTO[];
 }
 
 export interface BlockDTO {

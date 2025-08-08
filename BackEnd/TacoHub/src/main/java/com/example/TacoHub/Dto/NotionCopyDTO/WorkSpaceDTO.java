@@ -22,7 +22,5 @@ public class WorkSpaceDTO extends BaseDateDTO {
 
     private List<PageDTO> rootPageDTOS; // Page 트리 구조 정보
 
-    // 관련 User들 정보
-    private List<WorkSpaceUserDTO> workSpaceUserDTOS; // WorkSpace에 속한 User 정보
 
 }

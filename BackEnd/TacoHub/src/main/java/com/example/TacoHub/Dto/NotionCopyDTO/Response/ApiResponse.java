@@ -52,4 +52,17 @@ public class ApiResponse<T> {
                 .timestamp(LocalDateTime.now())
                 .build();
     }
+
+    /**
+     * error 응답에 data(T)도 포함할 수 있는 메서드
+     */
+    public static <T> ApiResponse<T> error(String message, String errorCode, T data) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .errorCode(errorCode)
+                .data(data)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
 }

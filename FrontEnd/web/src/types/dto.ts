@@ -9,7 +9,7 @@ export interface BaseDateDTO {
 // AccountDto
 export interface AccountDto {
   emailId: string;
-  password: string;
+  password?: string;
   name: string;
   role: string;
 }
@@ -35,32 +35,4 @@ export interface ErrorResponseDTO {
   details?: Record<string, string>;
 }
 
-// BlockDTO (WebSocket 타입과 통일)
-export interface BlockDTO {
-  id: string;
-  pageId: string;
-  blockType: string;
-  content?: string;
-  properties?: Record<string, any>;
-  parentId?: string | null;
-  orderIndex?: number;
-  childrenIds?: string[];
-  hasChildren?: boolean;
-  metadata?: Record<string, any>;
-  createdAt?: string;
-  updatedAt?: string;
-  createdBy?: string;
-  lastEditedBy?: string;
-}
 
-// PageDTO (WebSocket 타입과 통일, 예시)
-export interface PageDTO {
-  id: string;
-  title: string;
-  path: string;
-  orderIndex: number;
-  workspaceId: string;
-  parentId?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}

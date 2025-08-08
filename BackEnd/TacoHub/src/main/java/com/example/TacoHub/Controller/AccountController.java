@@ -3,6 +3,11 @@ package com.example.TacoHub.Controller;
 
 import com.example.TacoHub.Dto.AccountDto;
 import com.example.TacoHub.Service.AccountService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+import com.example.TacoHub.Dto.NotionCopyDTO.Response.ApiResponse;
+import com.example.TacoHub.Exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,19 +39,13 @@ public class AccountController {
      */
     @PostMapping("/postSignup/{authCode}/{purpose}")
     @ResponseBody
-    public ResponseEntity<?> postSignup(
+    public ResponseEntity<ApiResponse<String>> postSignup(
             AccountDto accountDto,
             @PathVariable String authCode,
             @PathVariable String purpose)
     {
-        try{
-            accountService.signUp(accountDto, authCode, purpose);
-            return new ResponseEntity<>("회원가입 성공", HttpStatus.OK);
-        }
-        catch (Exception e)
-        {
-            throw new RuntimeException(e);
-        }
+        accountService.signUp(accountDto, authCode, purpose);
+        return ResponseEntity.ok(ApiResponse.success("회원가입 성공", null));
     }
 
     /**
@@ -57,24 +56,38 @@ public class AccountController {
      */
     @PostMapping("/postCheckEmailId")
     @ResponseBody
-    public ResponseEntity<?> postCheckEmailId(
+    public ResponseEntity<ApiResponse<String>> postCheckEmailId(
             AccountDto accountDto)
     {
         String emailId = accountDto.getEmailId();
         boolean exists = accountService.checkEmailId(emailId);
-
-        if (exists)
-        {
-            return new ResponseEntity<>("이미 존재하는 이메일입니다.", HttpStatus.CONFLICT);
-        }
-        else
-        {
-            return new ResponseEntity<>("사용 가능한 이메일입니다.", HttpStatus.OK);
+        if (exists) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("이미 존재하는 이메일입니다.", "EMAIL_ALREADY_EXISTS"));
+        } else {
+            return ResponseEntity.ok(ApiResponse.success("사용 가능한 이메일입니다.", null));
         }
     }
 
-    // emailId로 사용자 리스트 모두 획득
-
-    // password 변경 요청
+    /**
+     * Access Token을 요청 헤더로 받아 계정 정보를 반환하는 API
+     * @param request HttpServletRequest (헤더에서 access token 추출)
+     * @return 계정 정보(AccountDto 등) 또는 에러 응답
+     * 내부 로직은 추후 구현 예정
+     */
+    @PostMapping("/getAccountInfo")
+    @ResponseBody
+    public ResponseEntity<ApiResponse<AccountDto>> getAccountInfoByAccessToken(HttpServletRequest request) {
+        try {
+            AccountDto accountDto = accountService.getAccountInfoByAccessToken(request);
+            return ResponseEntity.ok(ApiResponse.success("계정 정보 조회 성공", accountDto));
+        } catch (BusinessException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(e.getMessage(), e.getClass().getSimpleName()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("서버 오류", "INTERNAL_ERROR"));
+        }
+    }
 
 }

@@ -12,6 +12,8 @@ public class AccountConverter {
         accountEntity.setPassword(accountDTO.getPassword());
         accountEntity.setName(accountDTO.getName());
         accountEntity.setRole(accountDTO.getRole());
+        accountEntity.setProvider(accountDTO.getProvider());
+        accountEntity.setOauthId(accountDTO.getOauthId());
         return accountEntity;
     }
 
@@ -22,6 +24,8 @@ public class AccountConverter {
         accountDTO.setPassword(accountEntity.getPassword());
         accountDTO.setName(accountEntity.getName());
         accountDTO.setRole(accountEntity.getRole());
+        accountDTO.setProvider(accountEntity.getProvider());
+        accountDTO.setOauthId(accountEntity.getOauthId());
         return accountDTO;
     }
 

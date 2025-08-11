@@ -32,4 +32,10 @@ public class AccountEntity {
     @Column
     private String role; // 권한 (ROLE_USER, ROLE_ADMIN)
 
+    @Column(nullable = true)
+    private String provider; // OAuth 제공자 (google, naver 등), 일반 회원가입은 null
+
+    @Column(nullable = true)
+    private String oauthId; // OAuth 제공자에서 발급한 고유 ID, 일반 회원가입은 null
+
 }

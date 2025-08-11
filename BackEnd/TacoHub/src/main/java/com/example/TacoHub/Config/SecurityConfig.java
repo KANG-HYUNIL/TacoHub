@@ -1,5 +1,6 @@
 package com.example.TacoHub.Config;
 
+import com.example.TacoHub.Oauth.CustomOAuth2UserService;
 import com.example.TacoHub.Service.RedisService;
 import com.example.TacoHub.Utils.Jwt.JwtFilter;
 import com.example.TacoHub.Utils.Jwt.JwtUtil;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,10 +32,15 @@ public class SecurityConfig {
     private static final String LOGIN_URL = "/api/login";
     private static final String LOGOUT_URL = "/logout";
     
+    // OAuth2 경로 상수 정의
+    private static final String OAUTH2_AUTHORIZATION_BASE_URI = "/api/oauth2/authorization";
+    private static final String OAUTH2_REDIRECT_BASE_URI = "/login/oauth2/code";
+    
     // 필요한 의존성 주입
     private final AuthenticationConfiguration authenticationConfiguration;
     private final RedisService<String> redisService;
     private final JwtUtil jwtUtil;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     /**
      * 인증 관리자 빈 등록
@@ -75,6 +82,16 @@ public class SecurityConfig {
         
         // HTTP Basic 인증 비활성화
         http.httpBasic((basic) -> basic.disable());
+
+        //oauth2 인증 방식 설정
+        http.oauth2Login((oauth2) -> oauth2
+                .authorizationEndpoint((authorizationEndpointConfig) -> 
+                    authorizationEndpointConfig.baseUri(OAUTH2_AUTHORIZATION_BASE_URI))
+                .redirectionEndpoint((redirectionEndpointConfig) ->
+                    redirectionEndpointConfig.baseUri(OAUTH2_REDIRECT_BASE_URI))
+                .userInfoEndpoint((userInfoEndpointConfig) -> 
+                    userInfoEndpointConfig.userService(customOAuth2UserService))
+        );
 
         // 경로별 인가 규칙 설정
         http.authorizeHttpRequests((auth) -> auth

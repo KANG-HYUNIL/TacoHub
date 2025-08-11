@@ -12,6 +12,8 @@ export interface AccountDto {
   password?: string;
   name: string;
   role: string;
+  provider?: string; // OAuth 제공자 (google, naver 등), 일반 회원가입은 undefined
+  oauthId?: string; // OAuth 제공자에서 발급한 고유 ID, 일반 회원가입은 undefined
 }
 
 // LogInDto

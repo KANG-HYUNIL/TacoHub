@@ -44,6 +44,17 @@ spring:
   # Bean 중복 오류 해결 - Docker Compose 자동 통합과 수동 설정 충돌 방지
   main:
     allow-bean-definition-overriding: true
+
+  # Spring security oauth2 google 관련 yml 설정 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            # ... (client-id, client-secret 등)
+        provider:
+          google:
+            # ... (authorization-uri, token-uri 등)
     
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}

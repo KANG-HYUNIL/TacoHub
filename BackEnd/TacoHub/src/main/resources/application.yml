@@ -1,5 +1,7 @@
 server:
   port: 5000
+  # 프록시/LB 환경에서 원본 요청 정보 처리
+  forward-headers-strategy: framework
 
 
 springdoc:
@@ -39,6 +41,12 @@ jwt:
     secret: ${JWT_REFRESH_SECRET:} # 환경변수에서 주입
     expiration: ${JWT_REFRESH_EXPIRATION:204800000}  # 약 57시간 (밀리초)
 
+# OAuth2 관련 Custom settings (제거)
+# app:
+#   oauth2:
+#     success-redirect-url: "{baseUrl}/login/oauth2/success"
+#     failure-redirect-url: "{baseUrl}/login/oauth2/error"
+
 # 이메일 설정 (환경변수에서 주입)
 spring:
   # Bean 중복 오류 해결 - Docker Compose 자동 통합과 수동 설정 충돌 방지
@@ -51,10 +59,19 @@ spring:
       client:
         registration:
           google:
-            # ... (client-id, client-secret 등)
+            client-name: google
+            client-id: ${OAUTH2_CLIENT_ID_GOOGLE:} # 환경변수에서 주입
+            client-secret: ${OAUTH2_CLIENT_SECRET_GOOGLE:} # 환경변수에서 주입
+            authorization-grant-type: authorization_code
+            scope: profile,email
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/google"
+            
         provider:
           google:
-            # ... (authorization-uri, token-uri 등)
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://www.googleapis.com/oauth2/v4/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
     
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
@@ -139,7 +156,12 @@ spring:
     activate:
       on-profile: local
 
-  # Local 로깅: Console + File
+  # Local 도메인 URL 설정
+app:
+  domain:
+    base-url: "http://localhost:3000"
+    oauth2:
+      success-redirect-url: "http://localhost:3000/login/oauth2/success"  # Local 로깅: Console + File
   logging:
     level:
       root: DEBUG
@@ -206,7 +228,12 @@ spring:
     activate:
       on-profile: test
 
-  # Test 로깅: File + CloudWatch (ERROR/WARN)
+  # Test 도메인 URL 설정 (환경변수 우선)
+app:
+  domain:
+    base-url: ${APP_DOMAIN_BASE_URL:https://test.yourdomain.com}
+    oauth2:
+      success-redirect-url: ${APP_DOMAIN_BASE_URL:https://test.yourdomain.com}/login/oauth2/success  # Test 로깅: File + CloudWatch (ERROR/WARN)
   logging:
     level:
       root: INFO
@@ -266,7 +293,12 @@ spring:
     activate:
       on-profile: prod
 
-  # Production 로깅: CloudWatch + S3 (모든 레벨)
+  # Production 도메인 URL 설정 (반드시 환경변수 필요)
+app:
+  domain:
+    base-url: ${APP_DOMAIN_BASE_URL}  # 환경변수 필수
+    oauth2:
+      success-redirect-url: ${APP_DOMAIN_BASE_URL}/login/oauth2/success  # Production 로깅: CloudWatch + S3 (모든 레벨)
   logging:
     level:
       root: INFO

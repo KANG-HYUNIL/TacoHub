@@ -32,6 +32,65 @@
   padding: 0.5rem 1.5rem;
   cursor: pointer;
   margin-bottom: 1rem;
+  width: 240px;
+}
+
+/* 구분선 스타일 */
+.login-divider {
+  width: 100%;
+  text-align: center;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.login-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.login-divider span {
+  background: #fff;
+  padding: 0 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* Google 로그인 버튼 스타일 */
+.google-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 240px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 1.5rem;
+}
+
+.google-login-button:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.google-login-button:active {
+  transform: translateY(1px);
+}
+
+.google-icon {
+  flex-shrink: 0;
 }
 .login-signup-link {
   display: flex;

@@ -1,0 +1,165 @@
+/* Header 컴포넌트 스타일 */
+.header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+/* 로고 스타일 */
+.logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: #2563eb;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.logo:hover {
+  color: #1d4ed8;
+}
+
+/* 네비게이션 메뉴 */
+.nav-menu {
+  display: flex;
+  gap: 30px;
+}
+
+.nav-link {
+  color: #6b7280;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: #2563eb;
+}
+
+/* 헤더 우측 영역 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* 로딩 텍스트 */
+.loading-text {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* 사용자 정보 영역 */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.welcome-text {
+  color: #374151;
+  font-size: 14px;
+}
+
+.user-email {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.logout-button {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+  background-color: #dc2626;
+}
+
+/* 인증 버튼들 */
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.login-link,
+.signup-link {
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.login-link {
+  color: #2563eb;
+  border: 1px solid #2563eb;
+  background-color: transparent;
+}
+
+.login-link:hover {
+  background-color: #2563eb;
+  color: white;
+}
+
+.signup-link {
+  color: white;
+  background-color: #2563eb;
+  border: 1px solid #2563eb;
+}
+
+.signup-link:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .header-container {
+    padding: 0 15px;
+  }
+  
+  .nav-menu {
+    display: none;
+  }
+  
+  .user-info {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  
+  .welcome-text,
+  .user-email {
+    font-size: 12px;
+  }
+  
+  .auth-buttons {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .login-link,
+  .signup-link {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}

@@ -172,6 +172,9 @@ jobs:
         # Java 21의 Virtual Threads 및 새로운 기능 활성화
         JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
 
+        # AWS Region
+        AWS_REGION: ap-northeast-2
+
     # 8단계: 정리 작업 (항상 실행)
     - name: 🧹 리소스 정리
       if: always()  # 테스트 성공/실패와 관계없이 항상 실행

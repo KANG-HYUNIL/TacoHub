@@ -14,6 +14,9 @@ export const API_ENDPOINTS = {
   ACCOUNT_GET_INFO: '/account/getAccountInfo', // AccountController
   LOGOUT: '/logout', // SecurityConfig
   
+  // OAuth2 관련 API
+  OAUTH2_GOOGLE_LOGIN: '/api/oauth2/authorization/google', // SecurityConfig - Google OAuth2 로그인 시작
+  
   // JWT TOKEN 관련 API
   REFRESH_TOKEN: '/api/auth/refresh', // JwtController - 토큰 재발급 (POST)
   // ...추가 필요시 계속 반영

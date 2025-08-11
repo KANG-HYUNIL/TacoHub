@@ -1,5 +1,6 @@
 package com.example.TacoHub.Config;
 
+import com.example.TacoHub.Oauth.CustomOAuth2SuccessHandler;
 import com.example.TacoHub.Oauth.CustomOAuth2UserService;
 import com.example.TacoHub.Service.RedisService;
 import com.example.TacoHub.Utils.Jwt.JwtFilter;
@@ -34,13 +35,14 @@ public class SecurityConfig {
     
     // OAuth2 경로 상수 정의
     private static final String OAUTH2_AUTHORIZATION_BASE_URI = "/api/oauth2/authorization";
-    private static final String OAUTH2_REDIRECT_BASE_URI = "/login/oauth2/code";
+
     
     // 필요한 의존성 주입
     private final AuthenticationConfiguration authenticationConfiguration;
     private final RedisService<String> redisService;
     private final JwtUtil jwtUtil;
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final CustomOAuth2SuccessHandler customOAuth2SuccessHandler;
 
     /**
      * 인증 관리자 빈 등록
@@ -87,10 +89,9 @@ public class SecurityConfig {
         http.oauth2Login((oauth2) -> oauth2
                 .authorizationEndpoint((authorizationEndpointConfig) -> 
                     authorizationEndpointConfig.baseUri(OAUTH2_AUTHORIZATION_BASE_URI))
-                .redirectionEndpoint((redirectionEndpointConfig) ->
-                    redirectionEndpointConfig.baseUri(OAUTH2_REDIRECT_BASE_URI))
                 .userInfoEndpoint((userInfoEndpointConfig) -> 
                     userInfoEndpointConfig.userService(customOAuth2UserService))
+                .successHandler(customOAuth2SuccessHandler)
         );
 
         // 경로별 인가 규칙 설정

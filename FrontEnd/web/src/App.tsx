@@ -23,7 +23,10 @@ function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/desc" element={<DescPage />} />
           <Route path="/login/oauth2/success" element={<OAuth2SuccessPage />} />
-          <Route path="/workspace/:workspaceId/:pageId" element={<WorkspacePage />} />
+          {/* 워크스페이스 라우팅 - 다양한 패턴 지원 */}
+          <Route path="/workspace" element={<WorkspacePage />} />
+          <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+          <Route path="/workspace/:workspaceId/page/:pageId" element={<WorkspacePage />} />
         </Routes>
       <Footer />
       </BrowserRouter>

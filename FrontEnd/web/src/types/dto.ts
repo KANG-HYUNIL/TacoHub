@@ -37,4 +37,7 @@ export interface ErrorResponseDTO {
   details?: Record<string, string>;
 }
 
+// WorkSpaceDTO와 PageDTO는 NotionCopy DTO 파일에서 import하여 사용
+// import { WorkSpaceDTO, PageDTO } from './notioncopy-dto';
+
 

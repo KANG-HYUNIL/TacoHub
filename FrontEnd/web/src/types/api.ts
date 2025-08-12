@@ -1,5 +1,5 @@
 import { AccountDto, ErrorResponseDTO } from './dto';
-import { WorkSpaceDTO } from './notioncopy-dto';
+import { WorkSpaceDTO, PageDTO, BlockDTO } from './notioncopy-dto';
 
 // 공통 API 응답 래퍼
 export interface ApiResponse<T> {
@@ -57,4 +57,44 @@ export type RefreshTokenResponse = ApiResponse<string | null>;
  * /api/workspaces - workspace 생성
  */
 export type CreateWorkspaceResponse = ApiResponse<WorkSpaceDTO | null>;
+
+// PageController API Type
+/**
+ * /api/pages/{pageId} - 페이지 정보 조회
+ */
+export type GetPageResponse = ApiResponse<PageDTO>;
+
+/**
+ * /api/pages/{pageId}/blocks - 페이지의 모든 블록 조회
+ */
+export type GetPageBlocksResponse = ApiResponse<BlockDTO[]>;
+
+/**
+ * /api/pages/{pageId}/title - 페이지 제목 수정
+ */
+export interface UpdatePageTitleRequest {
+  title: string;
+}
+export type UpdatePageTitleResponse = ApiResponse<PageDTO>;
+
+// BlockController API Type
+/**
+ * /api/blocks - 블록 생성
+ */
+export type CreateBlockResponse = ApiResponse<BlockDTO>;
+
+/**
+ * /api/blocks/{blockId} - 블록 조회
+ */
+export type GetBlockResponse = ApiResponse<BlockDTO>;
+
+/**
+ * /api/blocks/{blockId} - 블록 수정
+ */
+export type UpdateBlockResponse = ApiResponse<BlockDTO>;
+
+/**
+ * /api/blocks/{blockId} - 블록 삭제
+ */
+export type DeleteBlockResponse = ApiResponse<null>;
 

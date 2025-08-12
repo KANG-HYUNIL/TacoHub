@@ -3,15 +3,20 @@ package com.example.TacoHub.Service.NotionCopyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceConverter;
 import com.example.TacoHub.Converter.NotionCopyConveter.WorkSpaceUserConverter;
+import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceDTO;
 import com.example.TacoHub.Dto.NotionCopyDTO.WorkSpaceUserDTO;
-import com.example.TacoHub.Dto.NotionCopyDTO.Request.InviteUserRequest;
 import com.example.TacoHub.Entity.AccountEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceEntity;
 import com.example.TacoHub.Entity.NotionCopyEntity.WorkSpaceUserEntity;
@@ -508,51 +513,7 @@ public class WorkSpaceUserService extends BaseService {
 
     /**
      * Admin으로 초대하고 WorkSpaceUserEntity를 생성하는 Method
-     * @param userEmailId 사용자 이메일 ID
-     * @param workspaceId 워크스페이스 ID
-     * @return 생성된 WorkSpaceUserEntity
-     */
-    @AuditLogging(action = "관리자_초대", includeParameters = true, includePerformance = true)
-    public WorkSpaceUserEntity inviteAsAdmin(String userEmailId, UUID workspaceId) {
-        String methodName = "inviteAsAdmin";
-        log.info("[{}] Admin 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
-        
-        try {
-            // 1. 입력값 검증
-            validateUserEmailId(userEmailId, methodName);
-            validateWorkspaceId(workspaceId, methodName);
-            validateNotExistingRelation(userEmailId, workspaceId, methodName);
-
-            // 2. 종속 엔티티 조회
-            WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
-            AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
-
-            // 3. Admin으로 초대하는 WorkSpaceUserEntity 생성
-            WorkSpaceUserEntity invitedUser = WorkSpaceUserFactory.createdInvitedAdminEntity(workspace, user);
-            
-            // 4. 저장 후 반환
-            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(invitedUser);
-            log.info("[{}] Admin 초대 완료: userEmailId={}, workspaceId={}, userId={}", 
-                    methodName, userEmailId, workspaceId, savedUser.getId());
-            
-            return savedUser;
-
-        } catch (WorkSpaceUserOperationException e) {
-            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
-            throw e;
-        } catch (BusinessException e) {
-            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
-                    methodName, e.getClass().getSimpleName(), e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            handleAndThrowWorkSpaceUserException(methodName, e);
-            return null; // 실제로는 도달하지 않음
-        }
-    }
-
-
-    /**
-     * Member로 초대하고 WorkSpaceUserEntity를 생성하는 Method
+    eUserEntity를 생성하는 Method
      * @param userEmailId 사용자 이메일 ID
      * @param workspaceId 워크스페이스 ID
      * @return 생성된 WorkSpaceUserEntity
@@ -639,6 +600,50 @@ public class WorkSpaceUserService extends BaseService {
         }
     }
 
+    /**
+     * Admin으로 초대하고 WorkSpaceUserEntity를 생성하는 Method
+     * @param userEmailId 사용자 이메일 ID
+     * @param workspaceId 워크스페이스 ID
+     * @return 생성된 WorkSpaceUserEntity
+     */
+    @AuditLogging(action = "관리자_초대", includeParameters = true, includePerformance = true)
+    public WorkSpaceUserEntity inviteAsAdmin(String userEmailId, UUID workspaceId) {
+        String methodName = "inviteAsAdmin";
+        log.info("[{}] Admin 초대 시작: userEmailId={}, workspaceId={}", methodName, userEmailId, workspaceId);
+        
+        try {
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            validateWorkspaceId(workspaceId, methodName);
+            validateNotExistingRelation(userEmailId, workspaceId, methodName);
+
+            // 2. 종속 엔티티 조회
+            WorkSpaceEntity workspace = workSpaceService.getWorkSpaceEntityOrThrow(workspaceId);
+            AccountEntity user = accountService.getAccountEntityOrThrow(userEmailId);
+
+            // 3. Admin으로 초대하는 WorkSpaceUserEntity 생성
+            WorkSpaceUserEntity invitedUser = WorkSpaceUserFactory.createdInvitedAdminEntity(workspace, user);
+            
+            // 4. 저장 후 반환
+            WorkSpaceUserEntity savedUser = workSpaceUserRepository.save(invitedUser);
+            log.info("[{}] Admin 초대 완료: userEmailId={}, workspaceId={}, userId={}", 
+                    methodName, userEmailId, workspaceId, savedUser.getId());
+            
+            return savedUser;
+
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return null; // 실제로는 도달하지 않음
+        }
+    }
+
 
     /**
      * 사용자가 워크스페이스를 관리할 수 있는지 확인
@@ -694,6 +699,111 @@ public class WorkSpaceUserService extends BaseService {
     public boolean canUserViewPage(String userEmailId, UUID workspaceId) {
         return checkUserPermission(userEmailId, workspaceId, "view page", 
                 entity -> entity.getWorkspaceRole().canViewPage());
+    }
+
+    /**
+     * 현재 사용자가 속한 모든 워크스페이스 목록을 조회합니다
+     * (UserInfoExtractor를 통해 현재 사용자 정보 자동 추출)
+     * 
+     * @return 사용자가 속한 워크스페이스 목록 (ACTIVE 상태만)
+     * @throws IllegalStateException 인증되지 않은 사용자인 경우
+     * @throws RuntimeException 데이터베이스 조회 실패 시
+     */
+    @AuditLogging(action = "현재사용자_워크스페이스_목록_조회", includeParameters = false)
+    public List<WorkSpaceDTO> getUserWorkspaces() {
+        String methodName = "getUserWorkspaces()";
+        
+        try {
+            // UserInfoExtractor를 통해 현재 사용자 이메일 추출
+            String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
+            
+            // 인증 확인
+            if (currentUserEmail == null || currentUserEmail.trim().isEmpty()) {
+                String errorMessage = "인증되지 않은 사용자입니다.";
+                log.error("[{}] {}", methodName, errorMessage);
+                throw new IllegalStateException(errorMessage);
+            }
+            
+            log.info("[{}] 현재 사용자 워크스페이스 목록 조회 시작: userEmail={}", 
+                methodName, currentUserEmail);
+            
+            // 실제 조회 로직은 기존 메서드 위임
+            return getUserWorkspaces(currentUserEmail);
+            
+        } catch (IllegalStateException e) {
+            // 인증 오류는 그대로 재발생
+            throw e;
+        } catch (Exception e) {
+            log.error("[{}] 현재 사용자 워크스페이스 목록 조회 중 예상치 못한 오류 발생: {}", 
+                methodName, e.getMessage(), e);
+            throw new RuntimeException("워크스페이스 목록 조회에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * 특정 사용자가 속한 모든 워크스페이스 목록을 조회하는 메서드
+     * @param userEmailId 사용자 이메일 ID
+     * @return 사용자가 속한 워크스페이스 DTO 목록
+     */
+    @AuditLogging(action = "사용자_워크스페이스_목록_조회", includeParameters = true)
+    public List<WorkSpaceDTO> getUserWorkspaces(String userEmailId) {
+        String methodName = "getUserWorkspaces";
+        log.info("[{}] 사용자 워크스페이스 목록 조회 시작: userEmailId={}", methodName, userEmailId);
+        
+        try {
+            // 1. 입력값 검증
+            validateUserEmailId(userEmailId, methodName);
+            
+            // 2. 현재 사용자가 본인 정보를 조회하는지 확인
+            String currentUserEmail = userInfoExtractor.getCurrentUserEmail();
+            if (!currentUserEmail.equals(userEmailId)) {
+                log.warn("[{}] 권한 없음: currentUser={}, requestedUser={}", 
+                        methodName, currentUserEmail, userEmailId);
+                throw new WorkSpaceUserOperationException(
+                    String.format("자신의 워크스페이스 목록만 조회할 수 있습니다: currentUser=%s, requestedUser=%s", 
+                                currentUserEmail, userEmailId));
+            }
+            
+            // 3. 사용자가 ACTIVE 상태로 속한 모든 워크스페이스 조회
+            List<WorkSpaceUserEntity> userWorkspaceEntities = workSpaceUserRepository
+                .findByUser_EmailIdAndMembershipStatus(userEmailId, MembershipStatus.ACTIVE);
+            
+            log.info("[{}] 조회된 워크스페이스 수: count={}, userEmailId={}", 
+                    methodName, userWorkspaceEntities.size(), userEmailId);
+            
+            // 4. Entity를 DTO로 변환
+            List<WorkSpaceDTO> workspaceDtos = userWorkspaceEntities.stream()
+                .map(entity -> {
+                    try {
+                        return WorkSpaceConverter.toDTO(entity.getWorkspace());
+                    } catch (Exception e) {
+                        log.warn("[{}] 워크스페이스 DTO 변환 실패: workspaceId={}, error={}", 
+                                methodName, entity.getWorkspace().getId(), e.getMessage());
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull) // null 값 제거
+                .collect(Collectors.toList());
+            
+            log.info("[{}] 워크스페이스 목록 조회 완료: userEmailId={}, count={}", 
+                    methodName, userEmailId, workspaceDtos.size());
+            
+            return workspaceDtos;
+            
+        } catch (WorkSpaceUserNotFoundException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (WorkSpaceUserOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowWorkSpaceUserException(methodName, e);
+            return Collections.emptyList(); // 실제로는 도달하지 않음
+        }
     }
 
 

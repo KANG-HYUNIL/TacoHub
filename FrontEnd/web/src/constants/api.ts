@@ -24,6 +24,8 @@ export const API_ENDPOINTS = {
 
   // WORKSPACE 관련 API
   WORKSPACE_CREATE : '/api/workspaces', // WorkSpaceController - 워크스페이스 생성 (POST)
+  WORKSPACE_MY_LIST : '/api/workspaces/my-workspaces', // WorkSpaceController - 사용자 워크스페이스 목록 조회 (GET)
+  WORKSPACE_GET : '/api/workspaces/{workspaceId}', // WorkSpaceController - 워크스페이스 조회 (GET)
 
 };
 

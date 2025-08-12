@@ -202,6 +202,38 @@ public class BlockService extends BaseService {
         }
     }
 
+    /**
+     * 페이지 ID로 해당 페이지의 모든 블록을 조회합니다 (삭제되지 않은 것만, 순서대로)
+     * @param pageId 조회할 블록들이 속한 페이지 ID
+     * @return List<BlockDocument> 블록 목록
+     */
+    public List<BlockDocument> getBlocksByPageId(UUID pageId) {
+        String methodName = "getBlocksByPageId";
+        log.info("[{}] 페이지 블록 조회 시작: pageId={}", methodName, pageId);
+        
+        try {
+            // 1. 입력값 검증
+            validatePageId(pageId, "페이지 ID");
+
+            // 2. 페이지에 속한 삭제되지 않은 모든 블록 조회 (순서대로)
+            List<BlockDocument> blocks = blockDocumentRepository.findByPageIdAndIsDeletedOrderByOrderIndex(pageId, false);
+            
+            log.info("[{}] 페이지 블록 조회 완료: pageId={}, blockCount={}", methodName, pageId, blocks.size());
+            return blocks;
+
+        } catch (BlockOperationException e) {
+            log.warn("[{}] 비즈니스 예외 발생: {}", methodName, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 비즈니스 계층 예외 발생: type={}, message={}", 
+                    methodName, e.getClass().getSimpleName(), e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowBlockException(methodName, e);
+            return Collections.emptyList(); // 실제로는 도달하지 않음
+        }
+    }
+
 
     /**
      * 블록 ID로 BlockDocument를 조회하고, 존재하지 않으면 예외를 발생시킵니다

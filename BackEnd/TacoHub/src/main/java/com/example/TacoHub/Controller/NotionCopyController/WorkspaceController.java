@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -69,6 +70,37 @@ public class WorkspaceController {
         log.info("워크스페이스 조회 완료: workspaceId={}", workspaceId);
 
         return ResponseEntity.ok(ApiResponse.success("워크스페이스 조회가 완료되었습니다.", workspaceDto));
+    }
+
+    /**
+     * 현재 사용자가 속한 모든 워크스페이스 목록 조회
+     * @return 사용자 워크스페이스 목록 응답
+     */
+    @GetMapping("/my-workspaces")
+    public ResponseEntity<ApiResponse<List<WorkSpaceDTO>>> getUserWorkspaces() {
+        log.info("사용자 워크스페이스 목록 조회 요청");
+
+        try {
+            // Service에서 현재 사용자 정보 추출 및 워크스페이스 목록 조회
+            List<WorkSpaceDTO> userWorkspaces = workSpaceUserService.getUserWorkspaces();
+            
+            log.info("사용자 워크스페이스 목록 조회 완료: count={}", userWorkspaces.size());
+            return ResponseEntity.ok(ApiResponse.success(
+                "워크스페이스 목록 조회가 완료되었습니다.", 
+                userWorkspaces));
+                
+        } catch (IllegalStateException e) {
+            // 인증 오류
+            log.warn("인증되지 않은 사용자의 워크스페이스 조회 시도: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("인증이 필요합니다."));
+                
+        } catch (Exception e) {
+            // 기타 오류
+            log.error("워크스페이스 목록 조회 중 오류 발생: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("워크스페이스 목록 조회에 실패했습니다."));
+        }
     }
 
 

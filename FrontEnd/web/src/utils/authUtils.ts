@@ -4,6 +4,7 @@
 import { API_ENDPOINTS } from '../constants/api';
 import type { PostSignupRequest, PostSignupResponse, ErrorResponse, RefreshTokenResponse, GetAccountInfoResponse } from '../types/api';
 import { AccountDto, LogInDto } from '../types/dto';
+import axios from 'axios';
 
 
 /** 

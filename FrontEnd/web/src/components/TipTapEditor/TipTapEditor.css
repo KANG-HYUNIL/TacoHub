@@ -1,0 +1,356 @@
+/* TipTap Editor 스타일 */
+.tiptap-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+/* 연결 상태 표시 */
+.tiptap-connection-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tiptap-connection-status .status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.tiptap-connection-status.connected .status-indicator {
+  background-color: #28a745;
+  box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+}
+
+.tiptap-connection-status.connecting .status-indicator {
+  background-color: #ffc107;
+  animation: pulse 1.5s infinite;
+}
+
+.tiptap-connection-status.disconnected .status-indicator {
+  background-color: #6c757d;
+}
+
+.tiptap-connection-status.error .status-indicator {
+  background-color: #dc3545;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.reconnect-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.reconnect-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 툴바 스타일 */
+.tiptap-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.tiptap-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #24292f;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tiptap-toolbar button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #8b949e;
+}
+
+.tiptap-toolbar button:active:not(:disabled) {
+  background-color: #e5e7ea;
+  transform: translateY(1px);
+}
+
+.tiptap-toolbar button.active {
+  background-color: #0969da;
+  color: #ffffff;
+  border-color: #0969da;
+}
+
+.tiptap-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f6f8fa;
+  color: #8b949e;
+}
+
+/* 에디터 콘텐츠 영역 */
+.tiptap-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ProseMirror 에디터 스타일 */
+.tiptap-editor-content .ProseMirror {
+  outline: none;
+  min-height: 300px;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  color: #24292f;
+}
+
+/* 제목 스타일 */
+.tiptap-editor-content .ProseMirror h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 24px 0 16px 0;
+  color: #1f2937;
+  border-bottom: 1px solid #e5e7ea;
+  padding-bottom: 8px;
+}
+
+.tiptap-editor-content .ProseMirror h2 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 20px 0 12px 0;
+  color: #1f2937;
+}
+
+.tiptap-editor-content .ProseMirror h3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 16px 0 8px 0;
+  color: #374151;
+}
+
+/* 문단 스타일 */
+.tiptap-editor-content .ProseMirror p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.tiptap-editor-content .ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.tiptap-editor-content .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* 리스트 스타일 */
+.tiptap-editor-content .ProseMirror ul {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.tiptap-editor-content .ProseMirror ul li {
+  margin: 4px 0;
+  list-style-type: disc;
+}
+
+.tiptap-editor-content .ProseMirror ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.tiptap-editor-content .ProseMirror ol li {
+  margin: 4px 0;
+  list-style-type: decimal;
+}
+
+/* 강조 텍스트 스타일 */
+.tiptap-editor-content .ProseMirror strong {
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.tiptap-editor-content .ProseMirror em {
+  font-style: italic;
+  color: #4b5563;
+}
+
+/* 코드 스타일 */
+.tiptap-editor-content .ProseMirror code {
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  color: #cf222e;
+}
+
+.tiptap-editor-content .ProseMirror pre {
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 인용문 스타일 */
+.tiptap-editor-content .ProseMirror blockquote {
+  border-left: 4px solid #d0d7de;
+  padding: 0 16px;
+  margin: 16px 0;
+  color: #656d76;
+  font-style: italic;
+}
+
+/* 구분선 스타일 */
+.tiptap-editor-content .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #d0d7de;
+  margin: 24px 0;
+}
+
+/* 선택 영역 스타일 */
+.tiptap-editor-content .ProseMirror ::selection {
+  background-color: #b3d7ff;
+}
+
+/* 에디터 상태 정보 */
+.tiptap-editor-status {
+  padding: 8px 12px;
+  background-color: #f6f8fa;
+  border-top: 1px solid #e0e0e0;
+  font-size: 11px;
+  color: #656d76;
+  text-align: right;
+}
+
+/* 로딩 상태 */
+.tiptap-editor-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #656d76;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7ea;
+  border-top: 2px solid #0969da;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .tiptap-toolbar {
+    padding: 6px 8px;
+    gap: 2px;
+  }
+  
+  .tiptap-toolbar button {
+    min-width: 28px;
+    height: 28px;
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+  
+  .tiptap-editor-content {
+    padding: 12px;
+  }
+  
+  .tiptap-editor-content .ProseMirror {
+    font-size: 13px;
+    min-height: 200px;
+  }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  .tiptap-toolbar button {
+    transition: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+/* 다크모드 지원 (선택사항) */
+@media (prefers-color-scheme: dark) {
+  .tiptap-editor-container {
+    background-color: #0d1117;
+    border-color: #30363d;
+  }
+  
+  .tiptap-toolbar {
+    background-color: #161b22;
+    border-color: #30363d;
+  }
+  
+  .tiptap-toolbar button {
+    background-color: #21262d;
+    color: #f0f6fc;
+    border-color: #30363d;
+  }
+  
+  .tiptap-toolbar button:hover:not(:disabled) {
+    background-color: #30363d;
+    border-color: #8b949e;
+  }
+  
+  .tiptap-editor-content .ProseMirror {
+    color: #f0f6fc;
+  }
+  
+  .tiptap-editor-status {
+    background-color: #161b22;
+    color: #8b949e;
+    border-color: #30363d;
+  }
+}

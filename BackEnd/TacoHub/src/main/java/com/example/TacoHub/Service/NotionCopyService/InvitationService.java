@@ -110,6 +110,38 @@ public class InvitationService extends BaseService {
     }
     
     /**
+     * 관리자 권한으로 사용자 초대
+     * @param workspaceId 워크스페이스 ID
+     * @param email 초대할 이메일
+     * @param customMessage 커스텀 메시지 (선택사항)
+     * @param expirationDays 만료일 (선택사항, 기본값: 7일)
+     * @return 초대 생성 결과
+     */
+    @AuditLogging(action = "관리자_초대", includeParameters = true, includePerformance = true)
+    public InvitationResponse inviteAsAdmin(UUID workspaceId, String email, String customMessage, Integer expirationDays) {
+        String methodName = "inviteAsAdmin";
+        log.info("[{}] 관리자 권한 초대 시작: workspaceId={}, email={}", 
+                methodName, workspaceId, email);
+        
+        try {
+            // ADMIN 역할로 초대 수행
+            return inviteUser(workspaceId, email, WorkSpaceRole.ADMIN, customMessage, expirationDays);
+            
+        } catch (InvitationOperationException e) {
+            log.warn("[{}] 관리자 초대 입력값 오류: workspaceId={}, email={}, 원인={}", 
+                    methodName, workspaceId, email, e.getMessage());
+            throw e;
+        } catch (BusinessException e) {
+            log.warn("[{}] 관리자 초대 비즈니스 오류: workspaceId={}, email={}, 원인={}", 
+                    methodName, workspaceId, email, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            handleAndThrowInvitationException(methodName, e);
+            return null; // 실제로는 도달하지 않음
+        }
+    }
+    
+    /**
      * 특정 역할로 사용자 초대 (내부 메서드)
      * @param workspaceId 워크스페이스 ID
      * @param email 초대할 이메일
@@ -299,14 +331,15 @@ public InvitationAcceptResponse acceptInvitationByToken(String token) {
 
         switch (invitation.getRole())
         {
+            case OWNER -> {
+                workSpaceUserService.inviteAsAdmin(invitation.getInvitedEmail(), invitation.getWorkspaceId());
+            }
             case ADMIN -> {
                 workSpaceUserService.inviteAsAdmin(invitation.getInvitedEmail(), invitation.getWorkspaceId());
             }
-
             case MEMBER -> {
                 workSpaceUserService.inviteAsMember(invitation.getInvitedEmail(), invitation.getWorkspaceId());
             }
-
             case GUEST -> {
                 workSpaceUserService.inviteAsGuest(invitation.getInvitedEmail(), invitation.getWorkspaceId());
             }

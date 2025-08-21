@@ -1,0 +1,425 @@
+/* 전체 워크스페이스 컨테이너 */
+.workspace-container {
+  display: flex;
+  min-height: 100vh;
+  background: #fafafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* 로딩 상태 */
+.workspace-container.loading,
+.workspace-container.error,
+.workspace-container.empty {
+  justify-content: center;
+  align-items: center;
+}
+
+.loading-content,
+.error-content,
+.empty-content {
+  text-align: center;
+  padding: 40px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 400px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7ea;
+  border-top: 3px solid #0969da;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-content h2 {
+  color: #dc3545;
+  margin-bottom: 12px;
+}
+
+.error-content button,
+.empty-content button {
+  background: #0969da;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.error-content button:hover,
+.empty-content button:hover {
+  background: #0550ae;
+}
+
+/* 사이드바 */
+.workspace-sidebar {
+  width: 280px;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.04);
+}
+
+/* 워크스페이스 헤더 */
+.workspace-header {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.workspace-name {
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #1f2937;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  display: block;
+}
+
+.workspace-name:hover {
+  background: #f3f4f6;
+}
+
+/* 워크스페이스 드롭다운 목록 */
+.workspace-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.workspace-list li {
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f6f8fa;
+  transition: background-color 0.2s ease;
+}
+
+.workspace-list li:last-child {
+  border-bottom: none;
+}
+
+.workspace-list li:hover {
+  background: #f6f8fa;
+}
+
+.workspace-list li.active {
+  background: #e7f3ff;
+  color: #0969da;
+  font-weight: 600;
+}
+
+/* 페이지 네비게이션 */
+.page-nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.page-tree {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.page-tree ul {
+  list-style: none;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.page-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+  min-height: 32px;
+}
+
+.arrow {
+  margin-right: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+  color: #656d76;
+}
+
+.arrow:hover {
+  background: #f3f4f6;
+}
+
+.page-title {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  flex: 1;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #24292f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-title:hover {
+  background: #f3f4f6;
+  color: #0969da;
+}
+
+.page-title.selected {
+  background: #e7f3ff;
+  color: #0969da;
+  font-weight: 600;
+}
+
+/* 페이지가 없을 때 */
+.no-pages {
+  text-align: center;
+  padding: 40px 20px;
+  color: #656d76;
+}
+
+.no-pages p {
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.no-pages button {
+  background: #0969da;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.no-pages button:hover {
+  background: #0550ae;
+}
+
+/* 메인 콘텐츠 영역 */
+.workspace-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fafafc;
+  overflow: hidden;
+}
+
+/* 사이드바가 없는 전체 너비 모드 (비로그인 사용자) */
+.workspace-main.full-width {
+  width: 100%;
+}
+
+/* 페이지 헤더 */
+.page-header {
+  padding: 24px 32px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.page-info {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #656d76;
+}
+
+.page-info span {
+  background: #f6f8fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.page-info .guest-mode {
+  background: #fff3cd;
+  color: #856404;
+  font-weight: 600;
+}
+
+/* 에디터 컨테이너 */
+.editor-container {
+  flex: 1;
+  padding: 16px 32px 32px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #656d76;
+}
+
+/* 페이지가 선택되지 않았을 때 */
+.no-page-selected {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #656d76;
+  text-align: center;
+}
+
+.no-page-selected h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: #374151;
+}
+
+.no-page-selected p {
+  font-size: 16px;
+  margin: 0;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1024px) {
+  .workspace-sidebar {
+    width: 240px;
+  }
+  
+  .workspace-main {
+    padding: 16px 24px;
+  }
+  
+  .page-header {
+    padding: 20px 24px 12px;
+  }
+  
+  .page-title {
+    font-size: 28px;
+  }
+  
+  .editor-container {
+    padding: 12px 24px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-container {
+    flex-direction: column;
+  }
+  
+  .workspace-sidebar {
+    width: 100%;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .workspace-main {
+    padding: 16px;
+  }
+  
+  .page-header {
+    padding: 16px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .editor-container {
+    padding: 12px 16px 16px;
+  }
+}
+
+/* 접근성 개선 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* 다크모드 지원 (선택사항) */
+@media (prefers-color-scheme: dark) {
+  .workspace-container {
+    background: #0d1117;
+  }
+  
+  .workspace-sidebar {
+    background: #161b22;
+    border-color: #30363d;
+  }
+  
+  .workspace-name {
+    color: #f0f6fc;
+  }
+  
+  .workspace-name:hover {
+    background: #21262d;
+  }
+  
+  .workspace-list {
+    background: #161b22;
+    border-color: #30363d;
+  }
+  
+  .workspace-list li {
+    border-color: #21262d;
+  }
+  
+  .workspace-list li:hover {
+    background: #21262d;
+  }
+  
+  .page-title {
+    color: #f0f6fc;
+  }
+  
+  .page-title:hover {
+    background: #21262d;
+  }
+  
+  .page-header {
+    background: #161b22;
+    border-color: #30363d;
+  }
+  
+  .page-title {
+    color: #f0f6fc;
+  }
+  
+  .workspace-main {
+    background: #0d1117;
+  }
+}

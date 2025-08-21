@@ -6,7 +6,7 @@ name: Backend API Server Startup Test
 on:
   # 코드가 main 또는 dev 브랜치에 푸시될 때 실행
   push:
-    branches: [ main, dev ]
+    branches: [ dev ]
     # 백엔드 코드가 변경되었을 때만 실행 (효율성을 위해)
     paths:
       - 'BackEnd/**'
@@ -67,7 +67,7 @@ jobs:
         
         # Docker Compose를 백그라운드에서 실행 (-d 옵션)
         # 모든 서비스(MySQL, MongoDB, Redis, RabbitMQ, LocalStack) 시작
-        docker-compose -f compose.yaml up -d
+        docker compose -f compose.yaml up -d
         
         # 실행된 컨테이너 상태 확인 (디버깅용)
         echo "🔍 실행 중인 컨테이너 확인:"
@@ -80,19 +80,19 @@ jobs:
         
         echo "⏱️ MySQL 서비스 준비 대기 중..."
         # MySQL이 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mysql mysqladmin ping -h localhost --silent; do sleep 2; done'
         
         echo "⏱️ MongoDB 서비스 준비 대기 중..."
         # MongoDB가 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T mongodb mongosh --eval "db.adminCommand(\"ping\")" --quiet; do sleep 2; done'
         
         echo "⏱️ Redis 서비스 준비 대기 중..."
         # Redis가 준비될 때까지 최대 30초 대기
-        timeout 30s bash -c 'until docker-compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
+        timeout 30s bash -c 'until docker compose exec -T redis redis-cli ping | grep -q PONG; do sleep 2; done'
         
         echo "⏱️ RabbitMQ 서비스 준비 대기 중..."
         # RabbitMQ가 준비될 때까지 최대 60초 대기
-        timeout 60s bash -c 'until docker-compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
+        timeout 60s bash -c 'until docker compose exec -T rabbitmq rabbitmqctl status > /dev/null 2>&1; do sleep 2; done'
         
         echo "✅ 모든 서비스가 준비되었습니다!"
 
@@ -109,9 +109,7 @@ jobs:
         ./gradlew build -x test
         
         echo "✅ 빌드 완료!"
-      env:
-        # Java 21의 Virtual Threads 활성화 (성능 향상)
-        JAVA_TOOL_OPTIONS: "--enable-preview"
+
 
     # 7단계: Spring Boot 서버 기동 테스트
     - name: 🚀 Spring Boot 서버 기동 테스트
@@ -130,7 +128,7 @@ jobs:
           -XX:+UnlockExperimentalVMOptions \
           -Xmx2g \
           -Xms1g \
-          build/libs/*.jar > app.log 2>&1 &
+          build/libs/*-SNAPSHOT.jar > app.log 2>&1 &
         
         # 프로세스 ID 저장 (나중에 종료하기 위해)
         APP_PID=$!
@@ -141,7 +139,7 @@ jobs:
         # 서버가 시작될 때까지 대기 (최대 120초)
         echo "⏳ 서버 시작 대기 중..."
         timeout 120s bash -c '
-          until curl -f http://localhost:5000/actuator/health > /dev/null 2>&1; do
+          until curl -f http://localhost:5000/api/actuator/health > /dev/null 2>&1; do
             echo "⏱️ 서버 응답 대기 중... ($(date))"
             sleep 5
           done
@@ -174,6 +172,9 @@ jobs:
         # Java 21의 Virtual Threads 및 새로운 기능 활성화
         JAVA_TOOL_OPTIONS: "--enable-preview -XX:+UseZGC"
 
+        # AWS Region
+        AWS_REGION: ap-northeast-2
+
     # 8단계: 정리 작업 (항상 실행)
     - name: 🧹 리소스 정리
       if: always()  # 테스트 성공/실패와 관계없이 항상 실행
@@ -182,7 +183,7 @@ jobs:
         
         echo "🧹 Docker 컨테이너 정리 중..."
         # 모든 컨테이너 중지 및 제거, 볼륨도 삭제
-        docker-compose -f compose.yaml down -v
+        docker compose -f compose.yaml down -v
         
         # 사용하지 않는 Docker 이미지 정리
         docker system prune -f

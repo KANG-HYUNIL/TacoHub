@@ -1,0 +1,139 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.5'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+
+	//aws dependency
+	implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
+
+	// AWS Parameter Store 지원
+	implementation 'org.springframework.cloud:spring-cloud-starter-aws-parameter-store-config:2.2.6.RELEASE'
+	implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap:3.1.7'
+
+	// CloudWatch 로깅 의존성
+	implementation 'ca.pjer:logback-awslogs-appender:1.6.0'
+	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+	implementation 'com.amazonaws:aws-java-sdk-logs:1.12.565'
+
+	//environment variables dependency
+	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+	//AOP dependency
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+	//JSON dependency
+	implementation 'org.springframework.boot:spring-boot-starter-json'
+
+	//rabbitmq dependency
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+	//jpa dependency
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	//mongodb dependency
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+	//redis dependency
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	//email dependency
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+
+	// OpenAPI API documentation dependency 
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+	//web dependency
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+	//security dependency
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+
+	// oauth2 dependency
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+	//validation dependency
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+	//session redis dependency
+	implementation 'org.springframework.session:spring-session-data-redis'
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+
+	//mysql dependency
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	//H2 Database (개발/테스트용)
+	runtimeOnly 'com.h2database:h2'
+
+	annotationProcessor 'org.projectlombok:lombok'
+	
+	// test dependencies
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.junit.jupiter:junit-jupiter:'
+	testImplementation 'org.mockito:mockito-core'
+	testImplementation 'org.assertj:assertj-core'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// JaCoCo 설정
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+jacocoTestReport {
+    dependsOn test
+    
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+    
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/config/**',
+                '**/dto/**',
+                '**/entity/**',
+                '**/*Application.class'
+            ])
+        }))
+    }
+}
+
+test.finalizedBy jacocoTestReport

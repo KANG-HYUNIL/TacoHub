@@ -1,0 +1,359 @@
+server:
+  port: 5000
+  # 프록시/LB 환경에서 원본 요청 정보 처리
+  forward-headers-strategy: framework
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+
+# AWS 전역 설정 (모든 환경에서 공통으로 사용)
+cloud:
+  aws:
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID:} # 환경변수에서 주입 (운영환경에서는 Instance Profile 사용 권장)
+      secret-key: ${AWS_SECRET_ACCESS_KEY:} # 환경변수에서 주입 (운영환경에서는 Instance Profile 사용 권장)
+    stack:
+      auto: false
+    s3:
+      bucket: ${s3.bucket.audit-logs:tacohub-audit-logs}
+      batch-size: ${s3.batch-size:1000}
+      flush-interval: ${s3.flush-interval:300000}
+      compression: true
+      lifecycle:
+        standard: 90
+        ia: 365
+        glacier: 2555
+      retention:
+        days: 2555
+
+jwt:
+  access:
+    secret: ${JWT_ACCESS_SECRET:} # 환경변수에서 주입
+    expiration: ${JWT_ACCESS_EXPIRATION:36000000}  # 10시간 (밀리초)
+  refresh:
+    secret: ${JWT_REFRESH_SECRET:} # 환경변수에서 주입
+    expiration: ${JWT_REFRESH_EXPIRATION:204800000}  # 약 57시간 (밀리초)
+
+# OAuth2 관련 Custom settings (제거)
+# app:
+#   oauth2:
+#     success-redirect-url: "{baseUrl}/login/oauth2/success"
+#     failure-redirect-url: "{baseUrl}/login/oauth2/error"
+
+# 이메일 설정 (환경변수에서 주입)
+spring:
+  # Bean 중복 오류 해결 - Docker Compose 자동 통합과 수동 설정 충돌 방지
+  main:
+    allow-bean-definition-overriding: true
+
+  # Spring security oauth2 google 관련 yml 설정 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-name: google
+            client-id: ${OAUTH2_CLIENT_ID_GOOGLE:} # 환경변수에서 주입
+            client-secret: ${OAUTH2_CLIENT_SECRET_GOOGLE:} # 환경변수에서 주입
+            authorization-grant-type: authorization_code
+            scope: profile,email
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/google"
+            
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://www.googleapis.com/oauth2/v4/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+    
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:} # 환경변수에서 주입
+    password: ${MAIL_PASSWORD:} # 환경변수에서 주입
+    protocol: ${MAIL_PROTOCOL:smtp}
+    properties:
+      mail:
+        protocol: ${MAIL_PROTOCOL:smtp}
+        smtp:
+          auth: ${MAIL_AUTH:true}
+          starttls:
+            enable: ${MAIL_STARTTLS_ENABLE:true}
+            required: ${MAIL_STARTTLS_REQUIRED:true}
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:20000}
+          timeout: ${MAIL_TIMEOUT:20000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT:20000}
+    auth-code-expiration: ${MAIL_AUTH_CODE_EXPIRATION:900000}  # 15분
+
+  application:
+    name: TacoHub
+  # 프로파일 설정 (기본값: local)
+  profiles:
+    active: local
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 300MB
+
+  # RabbitMQ 공통 설정 (모든 프로파일에서 사용)
+  rabbitmq:
+    # 연결 풀 설정
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:30000}
+    requested-heartbeat: ${RABBITMQ_REQUESTED_HEARTBEAT:60}
+    
+    # Publisher 설정
+    publisher-confirms: ${RABBITMQ_PUBLISHER_CONFIRMS:true}
+    publisher-returns: ${RABBITMQ_PUBLISHER_RETURNS:true}
+    
+    # Consumer 설정
+    listener:
+      simple:
+        concurrency: 5
+        max-concurrency: 10
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          max-interval: 10000
+          multiplier: 2.0
+        default-requeue-rejected: false  # 실패 시 DLQ로 전송
+        acknowledge-mode: auto
+        prefetch: 10
+
+# RabbitMQ 커스텀 설정 (Exchange/Queue 이름 관리)
+rabbitmq:
+  dlq :
+    exchange: ${RABBITMQ_DLQ_EXCHANGE:tacohub.dlx.exchange}
+    queues:
+      api-server-shared-dlq: ${RABBITMQ_QUEUE_API_SERVER_SHARED_DLQ:tacohub.api.server.shared.dlq}
+    routing-keys:
+      dlq-api : "api.server.shared.dlq.#"
+  exchanges:
+    collaboration: ${RABBITMQ_EXCHANGE_COLLABORATION:tacohub.collaboration.exchange}
+    notification: ${RABBITMQ_EXCHANGE_NOTIFICATION:tacohub.notification.exchange}
+  queues:
+    block-updates: ${RABBITMQ_QUEUE_BLOCK_UPDATES:tacohub.block.updates}
+    page-updates: ${RABBITMQ_QUEUE_PAGE_UPDATES:tacohub.page.updates}
+    workspace-updates: ${RABBITMQ_QUEUE_WORKSPACE_UPDATES:tacohub.workspace.updates}
+    api-server-shared: ${RABBITMQ_QUEUE_API_SERVER_SHARED:tacohub.api.server.shared}
+  routing-keys:
+    block: "block.#"
+    page: "page.#"
+    workspace: "workspace.#"
+    api : "api.#"
+
+---
+# Local 개발 환경 설정
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  # Local 도메인 URL 설정
+app:
+  domain:
+    base-url: "http://localhost:3000"
+    oauth2:
+      success-redirect-url: "http://localhost:3000/login/oauth2/success"  # Local 로깅: Console + File
+  logging:
+    level:
+      root: DEBUG
+      com.example.TacoHub: DEBUG
+      com.example.TacoHub.Logging: DEBUG
+      AUDIT: INFO
+    pattern:
+      console: "%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
+
+  # Local 감사 로깅 설정
+  audit:
+    log:
+      storage:
+        type: file
+      async: true
+
+  # Local 개발 DB 설정 (Docker MySQL 사용)
+  datasource:
+    url: ${DB_URL_LOCAL:jdbc:mysql://localhost:3306/tacohub_local}
+    username: ${DB_USERNAME_LOCAL:admin}
+    password: ${DB_PASSWORD_LOCAL:tacobackend}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 개발용: 매번 테이블 재생성
+    show-sql: true
+    open-in-view: false
+    database-platform: org.hibernate.dialect.MySQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+
+  # local Redis 설정 (Docker)
+  redis:
+    host: ${REDIS_HOST_LOCAL:localhost}
+    port: ${REDIS_PORT_LOCAL:6379}
+    ssl: false
+    password: ${REDIS_PASSWORD_LOCAL:}
+
+  # Local MongoDB 설정 (Docker)
+  data:
+    mongodb:
+      uri: ${MONGODB_URI_LOCAL:mongodb://admin:tacobackend@localhost:27017/springBootDocuments?authSource=admin}
+      database: ${MONGODB_DATABASE_LOCAL:springBootDocuments}
+
+  # Local RabbitMQ 연결 설정
+  rabbitmq:
+    host: ${RABBITMQ_HOST_LOCAL:localhost}
+    port: ${RABBITMQ_PORT_LOCAL:5672}
+    username: ${RABBITMQ_USERNAME_LOCAL:guest}
+    password: ${RABBITMQ_PASSWORD_LOCAL:guest}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST_LOCAL:/}
+    ssl:
+      enabled: ${RABBITMQ_SSL_ENABLED_LOCAL:false}
+
+
+
+
+---
+# Test/Staging 환경 설정
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  # Test 도메인 URL 설정 (환경변수 우선)
+app:
+  domain:
+    base-url: ${APP_DOMAIN_BASE_URL:https://test.yourdomain.com}
+    oauth2:
+      success-redirect-url: ${APP_DOMAIN_BASE_URL:https://test.yourdomain.com}/login/oauth2/success  # Test 로깅: File + CloudWatch (ERROR/WARN)
+  logging:
+    level:
+      root: INFO
+      com.example.TacoHub: INFO
+      AUDIT: INFO
+    config: classpath:logback-spring.xml
+
+  # Test 감사 로깅 설정
+  audit:
+    log:
+      storage:
+        type: multi           # file + cloudwatch
+      cloudwatch:
+        enabled: true
+        error-only: true      # ERROR/WARN만 CloudWatch 전송
+
+  # Test DB 설정 (Parameter Store에서 값 로드)
+  datasource:
+    url: jdbc:mysql://${database.host:test-db.amazonaws.com}:${database.port:3306}/${database.name:tacohub_test}
+    username: ${database.username:admin}
+    password: ${database.password:test-password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Test 환경에서는 validate 사용
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
+
+  # Test Redis 설정 (Parameter Store에서 값 로드)
+  redis:
+    host: ${redis.host:test-redis.amazonaws.com}
+    port: ${redis.port:6379}
+    ssl: false
+    password: ${redis.password:}
+
+  # Test MongoDB 설정 (Parameter Store에서 값 로드)
+  data:
+    mongodb:
+      uri: ${mongodb.uri:mongodb://test-mongo.amazonaws.com:27017/tacohub_test}
+      database: ${mongodb.database:tacohub_test}
+
+  # Test RabbitMQ 연결 설정 (Parameter Store에서 값 로드)
+  rabbitmq:
+    host: ${rabbitmq.host:test-rabbitmq.amazonaws.com}
+    port: ${rabbitmq.port:5672}
+    username: ${rabbitmq.username:guest}
+    password: ${rabbitmq.password:guest}
+    virtual-host: ${rabbitmq.virtual-host:/test}
+    ssl:
+      enabled: ${rabbitmq.ssl.enabled:true}
+
+---
+# 운영(Production) 환경 설정
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  # Production 도메인 URL 설정 (반드시 환경변수 필요)
+app:
+  domain:
+    base-url: ${APP_DOMAIN_BASE_URL}  # 환경변수 필수
+    oauth2:
+      success-redirect-url: ${APP_DOMAIN_BASE_URL}/login/oauth2/success  # Production 로깅: CloudWatch + S3 (모든 레벨)
+  logging:
+    level:
+      root: INFO
+      com.example.TacoHub: INFO
+      AUDIT: INFO
+    config: classpath:logback-spring.xml
+
+  # Production 감사 로깅 설정
+  audit:
+    log:
+      storageㄹ:
+        type: multi              # file + cloudwatch + s3
+      cloudwatch:
+        enabled: true
+        all-levels: true         # 모든 레벨을 CloudWatch에 전송
+        retention:
+          error: 30              # ERROR 로그 30일 보관
+          info: 7                # INFO 로그 7일 보관
+
+
+  # Production DB 설정 (Parameter Store에서 값 로드)
+  datasource:
+   url: jdbc:mysql://${database.host:prod-rds.amazonaws.com}:${database.port:3306}/${database.name:tacohub_prod}
+   username: ${database.username:admin}
+   password: ${database.password:secure-prod-password}
+   driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+   hibernate:
+     ddl-auto: validate  # 운영환경에서는 validate 사용
+   show-sql: false
+   open-in-view: false
+
+  #Production Redis 설정 (Parameter Store에서 값 로드)
+  redis:
+   host: ${redis.host:prod-redis.cache.amazonaws.com}
+   port: ${redis.port:6379}
+   ssl: false
+   password: ${redis.password:}
+
+  #Production MongoDB 설정 (Parameter Store에서 값 로드)
+  data:
+   mongodb:
+     uri: ${mongodb.uri:mongodb+srv://prod-cluster.mongodb.net/?retryWrites=true&w=majority}
+     database: ${mongodb.database:tacohub_prod}
+
+  # Production RabbitMQ 연결 설정 (Parameter Store에서 값 로드)
+  rabbitmq:
+    host: ${rabbitmq.host:prod-amazonmq.mq.ap-northeast-2.amazonaws.com}
+    port: ${rabbitmq.port:5671}
+    username: ${rabbitmq.username:tacohub-admin}
+    password: ${rabbitmq.password:secure-prod-password}
+    virtual-host: ${rabbitmq.virtual-host:tacohub-prod}
+    ssl:
+      enabled: ${rabbitmq.ssl.enabled:true}
+      # trust-store: ${rabbitmq.ssl.truststore:}
+      # trust-store-password: ${rabbitmq.ssl.truststore-password:}
+
